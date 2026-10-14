@@ -1,0 +1,47 @@
+## Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+
+## Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+## Test output
+TestResults/
+*.trx
+
+
+
+## Local secrets and logs
+*.log
+Logs/
+appsettings.Local.json
+appsettings.*.Local.json
+packettransfer.App/**/appsettings.Development.local.json
+secrets.json
+
+## Node / npm scratch (never part of the .NET framework)
+node_modules/
+npm-debug.log*
+package-lock.json
+
+## Scratch data files kept locally, never in git
+/mrniakan.xlsx
+
+## Local tooling mirror of .gitignore
+.zcodeignore
+
+## OS noise
+.DS_Store
+Thumbs.db
+# Real connection strings stay on the machine, never in git
+/packettransfer.App/appsettings.json
+/packettransfer.App/appsettings.Development.json
+.env
+
+# Data Protection keys (created at runtime by the sample host)
+DataProtection-Keys/

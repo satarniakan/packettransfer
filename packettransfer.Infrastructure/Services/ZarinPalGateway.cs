@@ -1,0 +1,154 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using packettransfer.Application.Services;
+using packettransfer.Domain.Identity;
+using packettransfer.Domain.Interfaces;
+
+namespace packettransfer.Infrastructure.Services;
+
+/// <summary>
+/// درگاه زرین‌پال (نسخهٔ ۴، مبالغ به تومان).
+/// مقدار مؤثر هر بار فراخوانی خوانده می‌شود: ردیف دیتابیس ← appsettings
+/// («Payment:ZarinPal:MerchantId» و «Payment:ZarinPal:Sandbox»).
+/// </summary>
+public class ZarinPalGateway : IPaymentGateway
+{
+    public string Name => "zarinpal";
+
+    private readonly HttpClient _http;
+    private readonly ISettingService _settings;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<ZarinPalGateway> _logger;
+
+    public ZarinPalGateway(HttpClient http, ISettingService settings,
+        IConfiguration configuration, ILogger<ZarinPalGateway> logger)
+    {
+        _http = http;
+        _settings = settings;
+        _configuration = configuration;
+        _logger = logger;
+    }
+
+    private string BaseUrl(bool sandbox) => sandbox
+        ? "https://sandbox.zarinpal.com/pg/v4/payment"
+        : "https://api.zarinpal.com/pg/v4/payment";
+
+    private static string StartPayUrl(bool sandbox, string authority) =>
+        (sandbox ? "https://sandbox.zarinpal.com/pg/StartPay/" : "https://www.zarinpal.com/pg/StartPay/")
+        + authority;
+
+    private async Task<(string MerchantId, bool Sandbox)> ConfigAsync()
+    {
+        var merchantId = await _settings.GetEffectiveAsync(
+            IntegrationSettingKeys.ZarinPalMerchantId, "Payment:ZarinPal:MerchantId");
+        var sandboxText = await _settings.GetEffectiveAsync(
+            IntegrationSettingKeys.ZarinPalSandbox, "Payment:ZarinPal:Sandbox", "false");
+        return (merchantId, string.Equals(sandboxText.Trim(), "true", StringComparison.OrdinalIgnoreCase));
+    }
+
+    public async Task<PaymentStartResult> StartPaymentAsync(PaymentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var (merchantId, sandbox) = await ConfigAsync();
+        if (string.IsNullOrWhiteSpace(merchantId))
+            throw new InvalidOperationException(
+                "کلید پذیرندهٔ زرین‌پال تنظیم نشده است (تنظیمات یا Payment:ZarinPal:MerchantId).");
+
+        using var response = await _http.PostAsJsonAsync($"{BaseUrl(sandbox)}/request.json",
+            new
+            {
+                merchant_id = merchantId,
+                amount = request.AmountTomans,
+                callback_url = request.CallbackUrl,
+                description = request.Description,
+                metadata = new { mobile = request.Mobile, email = request.Email }
+            }, cancellationToken);
+
+        var doc = await ReadJsonAsync(response, cancellationToken);
+        var data = doc.RootElement.GetProperty("data");
+        var code = data.GetProperty("code").GetInt32();
+
+        if (code != 100)
+        {
+            var message = data.TryGetProperty("message", out var m) ? m.GetString() : "خطای درگاه";
+            _logger.LogWarning("ZarinPal request failed with code {Code}: {Message}", code, message);
+            throw new InvalidOperationException($"شروع پرداخت ناموفق بود (کد {code}).");
+        }
+
+        var authority = data.GetProperty("authority").GetString()!;
+        return new PaymentStartResult(authority, StartPayUrl(sandbox, authority));
+    }
+
+    public async Task<PaymentVerifyResult> VerifyPaymentAsync(string authority, long amountTomans,
+        CancellationToken cancellationToken = default)
+    {
+        var (merchantId, sandbox) = await ConfigAsync();
+
+        using var response = await _http.PostAsJsonAsync($"{BaseUrl(sandbox)}/verify.json",
+            new { merchant_id = merchantId, authority, amount = amountTomans },
+            cancellationToken);
+
+        var doc = await ReadJsonAsync(response, cancellationToken);
+        var data = doc.RootElement.GetProperty("data");
+        var code = data.GetProperty("code").GetInt32();
+
+        // ۱۰۰ = موفق، ۱۰۱ = قبلاً وریفای شده (callback تکراری) — هر دو یعنی پول رسیده
+        if (code is 100 or 101)
+        {
+            var refId = data.TryGetProperty("ref_id", out var r) ? r.GetInt64() : (long?)null;
+            var pan = data.TryGetProperty("card_pan", out var p) ? p.GetString() : null;
+            return new PaymentVerifyResult(true, refId, pan);
+        }
+
+        var message = data.TryGetProperty("message", out var msg) ? msg.GetString() : "ناموفق";
+        return new PaymentVerifyResult(false, ErrorMessage: message);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        response.EnsureSuccessStatusCode();
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+    }
+}
+
+/// <summary>
+/// درگاه نمایشی برای Development/تست: شروع همیشه موفق با authority ساختگی،
+/// وریفای همیشه موفق با refId ثابت. هیچ تماس شبکه‌ای ندارد.
+/// </summary>
+public class FakePaymentGateway : IPaymentGateway
+{
+    public string Name => "fake";
+
+    private readonly ILogger<FakePaymentGateway> _logger;
+    private readonly bool _logDetails;
+
+    public FakePaymentGateway(ILogger<FakePaymentGateway> logger, bool logDetails = false)
+    {
+        _logger = logger;
+        _logDetails = logDetails;
+    }
+
+    public Task<PaymentStartResult> StartPaymentAsync(PaymentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var authority = $"FAKE-{Guid.NewGuid():N}";
+        if (_logDetails)
+            _logger.LogInformation("FAKE payment start: {Amount} — {Authority}", request.AmountTomans, authority);
+
+        // در حالت نمایشی، «رفتن به درگاه» یعنی برگشت مستقیم به callback میزبان
+        return Task.FromResult(new PaymentStartResult(authority, $"/payments/callback?Authority={authority}&Status=OK"));
+    }
+
+    public Task<PaymentVerifyResult> VerifyPaymentAsync(string authority, long amountTomans,
+        CancellationToken cancellationToken = default)
+    {
+        if (_logDetails)
+            _logger.LogInformation("FAKE payment verify: {Authority}", authority);
+
+        return Task.FromResult(new PaymentVerifyResult(true, RefId: 123456, CardPanMasked: "603799******0000"));
+    }
+}

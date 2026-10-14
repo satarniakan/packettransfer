@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json.schemastore.org/appsettings.json",
+
+  "//": "این فایل را به appsettings.json کپی کنید و مقادیر واقعی را بگذارید. خودِ appsettings.json عمداً در git نیست.",
+  "//settings": "مقادیر عملیاتی (کلیدها، هاست‌ها) را می‌توانید بعداً از صفحه /admin/settings هم عوض کنید — ردیف دیتابیس بر این فایل مقدم است. مقادیر محرمانه در دیتابیس رمزنگاری می‌شوند.",
+
+  "ConnectionStrings": {
+    "Default": "Server=(localdb)\\mssqllocaldb;Database=EmptyFrameworkDev;Trusted_Connection=True;TrustServerCertificate=True"
+  },
+  "Serilog": {
+    "//log-note": "سطح System را از Warning پایین نیاورید: کلید API کاوه‌نگار داخل URL درخواست است و لاگ HttpClient آن را با آدرس کامل ثبت می‌کند.",
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Warning",
+        "Microsoft.Hosting.Lifetime": "Information",
+        "System": "Warning"
+      }
+    }
+  },
+  "Identity": {
+    "//": "شماره‌ی ادمین اول روی دیتابیس خالی. خالی یعنی هیچ‌کس خودکار ادمین نمی‌شود و کاربران تازه نقش «کاربر» می‌گیرند.",
+    "FirstAdminPhoneNumber": ""
+  },
+  "Sms": {
+    "//": "Provider: Fake (لاگ) یا Kavenegar (واقعی).",
+    "Provider": "Fake",
+    "Kavenegar": {
+      "ApiKey": "",
+      "Sender": null
+    },
+    "MaxAttempts": 3,
+    "BatchSize": 20
+  },
+  "Email": {
+    "Smtp": {
+      "Host": "",
+      "Port": 587,
+      "Username": null,
+      "Password": null,
+      "FromAddress": "no-reply@localhost",
+      "FromName": "سامانه"
+    }
+  },
+  "Payment": {
+    "//": "Provider: Fake (نمایشی) یا ZarinPal (واقعی). مبالغ به تومان.",
+    "Provider": "Fake",
+    "ZarinPal": {
+      "MerchantId": "",
+      "Sandbox": false
+    }
+  },
+  "Captcha": {
+    "//": "Provider: خالی/Fake (غیرفعال) یا Turnstile (واقعی).",
+    "Provider": "",
+    "Turnstile": {
+      "SiteKey": "",
+      "SecretKey": ""
+    }
+  },
+  "Push": {
+    "//": "کلیدهای VAPID برای وب‌پوش. ساخت: npx web-push generate-vapid-keys",
+    "//Subject": "mailto:admin@example.com",
+    "Vapid": {
+      "Subject": "",
+      "PublicKey": "",
+      "PrivateKey": ""
+    }
+  },
+  "ApiTokens": {
+    "//": "عمر توکن موبایل به روز.",
+    "LifetimeDays": 180
+  },
+  "Support": {
+    "//": "جانشینی ادمین (ورود به‌جای کاربر). پیش‌فرض خاموش؛ فقط برای پشتیبانی روشن کنید.",
+    "ImpersonationEnabled": false
+  },
+  "ForwardedHeaders": {
+    "//": "پشت reverse proxy این را false نگه دارید، وگرنه همهٔ کاربران یک IP می‌گیرند و rate limit همه را قفل می‌کند.",
+    "TrustAllProxies": false
+  },
+  "AllowedHosts": "*",
+  "Storage": {
+    "//": "فعال‌سازی LocalFileStorage (لایه‌ی Infrastructure/Services) در محیط‌های Local/Development استفاده می‌شود؛ مقدار‌های خالی برای LocalFileStorage در محیط‌های واقعی قابل تنظیم است.",
+    "RootPath": "AppData",
+    "MaxFileSizeBytes": "52428800",
+    "AllowedExtensions": "jpg,jpeg,png,gif,bmp,webp,mp3,mp4,pdf,docx,xlsx,pptx,zip"
+  }
+}

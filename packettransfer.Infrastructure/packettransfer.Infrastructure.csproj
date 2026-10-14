@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- TargetFramework / Nullable / ImplicitUsings در Directory.Build.props مشترک‌اند. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="WebPush" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- AddIdentity/SignInManager و Microsoft.Extensions.Configuration* از فریم‌ورک ASP.NET Core
+         می‌آیند؛ پکیج قدیمی Microsoft.AspNetCore.Identity نسخهٔ ۲.۳.x دیگر لازم نیست. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\packettransfer.Domain\packettransfer.Domain.csproj" />
+    <!-- پیاده‌سازی سرویس‌های Application (فرستنده‌ها تنظیمات را از ISettingService می‌خوانند).
+         جهت وابستگی درست است: Infrastructure به Application وابسته است، نه برعکس. -->
+    <ProjectReference Include="..\packettransfer.Application\packettransfer.Application.csproj" />
+  </ItemGroup>
+
+</Project>

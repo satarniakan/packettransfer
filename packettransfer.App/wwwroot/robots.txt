@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /login
+Disallow: /verify-otp
+Allow: /
+
+Sitemap: /sitemap.xml

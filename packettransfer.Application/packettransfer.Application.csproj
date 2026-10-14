@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" />
+    <!-- فقط برای عملیات ناهمگام روی IQueryable (ToPagedAsync). لایهٔ Domain همچنان بی‌خبر از EF است. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="QuestPDF" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Identity (SignInManager/UserManager) و Microsoft.Extensions.* از فریم‌ورک ASP.NET Core
+         می‌آیند؛ پکیج قدیمی و بی‌ربط Microsoft.AspNetCore.Identity نسخهٔ ۲.۳.x لازم نیست. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\packettransfer.Domain\packettransfer.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- فونت وزیرمتن برای خروجی PDF. بدون آن، متن فارسی در PDF به‌صورت
+         حروف جدا از هم و بدون شکل‌دهی (shaping) چاپ می‌شود و ناخوانا است.
+         نسخهٔ woff2 که در wwwroot است برای PDF کار نمی‌کند؛ PDF به TTF نیاز دارد. -->
+    <EmbeddedResource Include="Assets\Fonts\*.ttf" />
+  </ItemGroup>
+
+</Project>

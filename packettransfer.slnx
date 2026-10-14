@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="packettransfer.Domain/packettransfer.Domain.csproj" />
+  <Project Path="packettransfer.Application/packettransfer.Application.csproj" />
+  <Project Path="packettransfer.Infrastructure/packettransfer.Infrastructure.csproj" />
+  <!-- پروژهٔ اجرایی: فقط همین یکی را اجرا کنید (در Visual Studio: Set as Startup Project) -->
+  <Project Path="packettransfer.App/packettransfer.App.csproj" />
+  <Project Path="packettransfer.Tests/packettransfer.Tests.csproj" />
+</Solution>

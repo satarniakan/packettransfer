@@ -1,0 +1,22 @@
+using packettransfer.Domain.Entities;
+
+namespace packettransfer.Domain.Interfaces;
+
+public interface IApiTokenRepository
+{
+    Task<UserApiToken?> GetByHashAsync(string tokenHash);
+
+    Task AddAsync(UserApiToken token);
+
+    Task<List<UserApiToken>> GetActiveForUserAsync(string userId);
+
+    /// <summary>حذف فیزیکی توکن‌های منقضی/لغوشدهٔ قدیمی (خانه‌تکانی).</summary>
+    Task<int> DeleteExpiredAsync(DateTime cutoffUtc);
+}
+
+public interface ILoginHistoryRepository
+{
+    Task AddAsync(LoginHistory entry);
+
+    Task<List<LoginHistory>> GetRecentForUserAsync(string userId, int take = 20);
+}
