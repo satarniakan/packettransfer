@@ -5,12 +5,19 @@ using packettransfer.App.Components.Layout;
 namespace packettransfer.App;
 
 /// <summary>
-/// کاتالوگ مجوزهای میزبان نمونه. عمداً خالی است: مجوزها مال دامنه‌اند و هر پروژه
-/// مال خودش را اینجا ثبت می‌کند. الگو: <c>new("orders.manage", "مدیریت سفارش‌ها", "سفارش‌ها")</c>.
+/// کاتالوگ مجوزهای میزبان: مجوزهای پایه (خالی) + مجوزهای ماژول توزیع بسته.
 /// </summary>
 public sealed class AppPermissionCatalog : IPermissionCatalog
 {
-    public IReadOnlyList<PermissionDescriptor> All { get; } = [];
+    public IReadOnlyList<PermissionDescriptor> All { get; } =
+    [
+        new(packettransfer.Distribution.DistributionPermissions.Manage,
+            packettransfer.Distribution.DistributionPermissions.Title(packettransfer.Distribution.DistributionPermissions.Manage),
+            packettransfer.Distribution.DistributionPermissions.Group),
+        new(packettransfer.Distribution.DistributionPermissions.Deliver,
+            packettransfer.Distribution.DistributionPermissions.Title(packettransfer.Distribution.DistributionPermissions.Deliver),
+            packettransfer.Distribution.DistributionPermissions.Group),
+    ];
 }
 
 /// <summary>
@@ -24,8 +31,6 @@ public sealed class AppSettingCatalog : ISettingCatalog
     public IReadOnlyList<SettingDescriptor> All { get; } =
     [
         new(FrameworkSettingKeys.SiteName, "نام سامانه", SettingDefaults.Get(FrameworkSettingKeys.SiteName), "عمومی"),
-        new(FrameworkSettingKeys.OtpSmsTemplate, "قالب پیامک کد ورود ({Code})",
-            SettingDefaults.Get(FrameworkSettingKeys.OtpSmsTemplate), "پیامک"),
 
         new(IntegrationSettingKeys.SmsKavenegarApiKey, "کلید API کاوه‌نگار (Sms:Kavenegar:ApiKey)",
             "", "پیامک", IsSecret: true),
@@ -43,11 +48,6 @@ public sealed class AppSettingCatalog : ISettingCatalog
             "", "پرداخت", IsSecret: true),
         new(IntegrationSettingKeys.ZarinPalSandbox, "حالت sandbox زرین‌پال (true/false)", "", "پرداخت"),
 
-        new(IntegrationSettingKeys.TurnstileSecretKey, "کلید محرمانه Turnstile (سرور)",
-            "", "کپچا", IsSecret: true),
-        new(IntegrationSettingKeys.TurnstileSiteKey, "کلید عمومی Turnstile (ویجت لاگین)",
-            "", "کپچا"),
-
         new(IntegrationSettingKeys.VapidSubject, "آدرس تماس VAPID (مثل mailto:admin@example.com)", "", "وب‌پوش"),
         new(IntegrationSettingKeys.VapidPublicKey, "کلید عمومی VAPID", "", "وب‌پوش"),
         new(IntegrationSettingKeys.VapidPrivateKey, "کلید خصوصی VAPID", "", "وب‌پوش", IsSecret: true),
@@ -63,6 +63,13 @@ public sealed class AppNavProvider : INavProvider
 {
     public IReadOnlyList<NavItem> GetRootItems() =>
     [
+        // توزیع بسته: داشبورد ادمین + اپ توزیع‌کننده
+        NavItem.Group("توزیع بسته", "bi-box-seam",
+            NavItem.Link("داشبورد توزیع", "admin/distribution", "bi-clipboard-data",
+                packettransfer.Distribution.DistributionPermissions.Manage),
+            NavItem.Link("اپ توزیع‌کننده", "deliver", "bi-bicycle",
+                packettransfer.Distribution.DistributionPermissions.Deliver)),
+
         // مدیریت کاربران، مجوزها و پیام‌رسانی
         NavItem.Group("مدیریت", "bi-shield-lock",
             NavItem.Link("کاربران", "admin/users", "bi-people", Roles.Admin),

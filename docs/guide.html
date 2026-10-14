@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8" />
@@ -46,7 +46,7 @@
       <li><a href="#s4">اولین اجرا و ادمین‌شدن</a></li>
       <li><a href="#s5">نقشه پروژه‌ها و قانون طلایی</a></li>
       <li><a href="#s6">افزودن ماژول دامنه قدم‌به‌قدم (مثال: سفارش‌ها)</a></li>
-      <li><a href="#s7">اتصال موبایل و API</a></li>
+      <li><a href="#s7">اتصال API</a></li>
       <li><a href="#s8">چک‌لیست رفتن به Production</a></li>
       <li><a href="#s9">عیب‌یابی</a></li>
     </ol>
@@ -81,25 +81,25 @@ cd MyProject   # خروجی داخل پوشهٔ هم‌نام می‌نشیند<
       <tr><td><b>ب) اسکریپت آماده</b></td><td>فایل <code class="inline">docs/database.sql</code> را روی دیتابیس تازه اجرا کنید (دستورش اول فایل هست)</td><td>وقتی DBA جداگانه دیتابیس می‌سازد یا می‌خواهید ریستور کنید</td></tr>
       <tr><td><b>ج) خودکار</b></td><td>هیچ‌کار — اپ با <code class="inline">MigrateAsync</code> هنگام استارتاپ جدول‌ها را می‌سازد</td><td>توسعه روزمره</td></tr>
     </table>
-    <p>بعد فایل <code class="inline">packettransfer.App/appsettings.json.example</code> را به <code class="inline">appsettings.json</code> (کنار خودش) کپی کنید و رشته اتصال + <code class="inline">Identity:FirstAdminPhoneNumber</code> (شماره خودتان) را بگذارید. این فایل در گیت نمی‌رود.</p>
+    <p>بعد فایل <code class="inline">packettransfer.App/appsettings.json.example</code> را به <code class="inline">appsettings.json</code> (کنار خودش) کپی کنید و رشته اتصال را بگذارید. این فایل در گیت نمی‌رود.</p>
   </section>
 
   <section class="card" id="s3">
     <h2><span class="step">۳</span>بیلد و تست</h2>
 <pre>dotnet build MyProject.slnx
 dotnet test MyProject.Tests/MyProject.Tests.csproj</pre>
-    <p>هر دو باید سبز شوند (≈۱۵۰ تست). اگر قرمز شد همان خطا را بخوانید — معمولاً رشته اتصال است.</p>
+    <p>هر دو باید سبز شوند (≈۱۳۰ تست). اگر قرمز شد همان خطا را بخوانید — معمولاً رشته اتصال است.</p>
   </section>
 
   <section class="card" id="s4">
     <h2><span class="step">۴</span>اولین اجرا و ادمین‌شدن</h2>
 <pre>dotnet run --project MyProject.App</pre>
     <ol>
-      <li>با شماره‌ای که در <code class="inline">FirstAdminPhoneNumber</code> گذاشتید وارد شوید (کد پیامکی).</li>
-      <li>اولین ورودِ آن شماره، نقش <b>ادمین</b> می‌گیرد؛ بقیه «کاربر» می‌شوند.</li>
+      <li>ادمین اول را با <code class="inline">tools/create-admin.sql</code> بسازید و با نام کاربری و رمز وارد شوید.</li>
+      <li>بقیه کاربران را ادمین از <code class="inline">/admin/users</code> با نام کاربری و رمز می‌سازد.</li>
       <li>منو را ببینید: مدیریت کاربران، تنظیمات، گزارش رویدادها.</li>
       <li>صفحه‌های مدیریتی آماده: <code class="inline">/admin/users</code> (با <b>ایمپورت اکسل</b> + گزارش خطای هر سطر)، <code class="inline">/admin/outbox</code> (صف پیامک/ایمیل/پوش + <b>تلاش دوباره</b> برای ناموفق‌ها)، <code class="inline">/admin/payments</code> و داشبورد.</li>
-      <li><b>تعیین/فراموشی رمز:</b> در صفحهٔ ورود، لینک «رمز عبور را فراموش کرده‌اید؟» به <code class="inline">/reset-password</code> می‌رود؛ یک جریان <b>دو مرحله‌ای</b> (وارد کردن شماره → کد پیامکی + رمز جدید). برای کاربرِ بی‌رمز (مثلاً واردشده با اکسل) همین مسیر «تعیین اول» است. کد یک‌بارمصرف است و عدم تطابق رمز پیش از مصرف کد پیام می‌دهد.</li>
+      <li><b>فراموشی رمز:</b> بازیابی خودکار وجود ندارد؛ ادمین از صفحه ویرایش کاربر (بخش «بازنشانی رمز عبور») رمز جدید تعیین می‌کند و کاربر از پروفایل با دانستن رمز فعلی عوض می‌کند.</li>
     </ol>
   </section>
 
@@ -129,12 +129,12 @@ dotnet test MyProject.Tests/MyProject.Tests.csproj</pre>
   </section>
 
   <section class="card" id="s7">
-    <h2><span class="step">۷</span>اتصال موبایل و API</h2>
+    <h2><span class="step">۷</span>اتصال API</h2>
     <ul>
-      <li>ورود: <code class="inline">POST /api/v1/auth/otp/verify</code> (پیامک) یا <code class="inline">POST /api/v1/auth/login</code> (رمز — وقتی پیامک قطع است) → توکن <code class="inline">pat_…</code></li>
+      <li>ورود: <code class="inline">POST /api/v1/auth/login</code> با نام کاربری/ایمیل و رمز → توکن <code class="inline">pat_…</code></li>
       <li>استفاده: هدر <code class="inline">Authorization: Bearer pat_…</code> — مستندات کامل در Development: <code class="inline">/openapi/v1.json</code></li>
       <li>مدیریت نشست: <code class="inline">GET/DELETE /api/v1/auth/tokens</code> (لیست و لغو، از جمله «خروج از همه دستگاه‌ها»)</li>
-      <li><b>فراموشی/تعیین رمز موبایل:</b> کاربر بی‌رمز (مثلاً واردشده با اکسل) یا فراموش‌کار، کد پیامکی می‌گیرد و رمز تعیین می‌کند (<code class="inline">IAuthService.ResetPasswordWithOtpAsync</code>). برای کاربرِ بی‌رمز همان مسیر «تعیین اول» است. کد یک‌بارمصرف است.</li>
+      <li><b>تغییر رمز:</b> از صفحه پروفایل (با رمز فعلی) یا توسط ادمین از صفحه ویرایش کاربر.</li>
     </ul>
     <div class="note"><b>وب‌پوش (Push):</b> کلید عمومی از <code class="inline">GET /api/v1/push/public-key</code> خوانده می‌شود (اول تنظیم یکپارچه‌سازی، بعد appsettings). اگر <code class="inline">Push:Vapid:PublicKey</code> خالی باشد، دکمهٔ اشتراک خودش را پنهان می‌کند. کلید VAPID با <code class="inline">npx web-push generate-vapid-keys</code> ساخته می‌شود.</div>
   </section>
@@ -143,7 +143,6 @@ dotnet test MyProject.Tests/MyProject.Tests.csproj</pre>
     <h2><span class="step">۸</span>چک‌لیست رفتن به Production</h2>
     <ul>
       <li><code class="inline">Sms:Provider=Kavenegar</code> + کلید واقعی؛ قالب‌ها در صفحه تنظیمات بازبینی شوند.</li>
-      <li><code class="inline">Captcha:Provider=Turnstile</code> + SiteKey/SecretKey.</li>
       <li><code class="inline">Payment:Provider=ZarinPal</code> + MerchantId (مبالغ به تومان).</li>
       <li><code class="inline">Push:Vapid</code> با <code class="inline">npx web-push generate-vapid-keys</code>.</li>
       <li><code class="inline">Support:ImpersonationEnabled</code> خاموش بماند مگر برای پشتیبانی.</li>
@@ -159,7 +158,7 @@ dotnet test MyProject.Tests/MyProject.Tests.csproj</pre>
       <tr><td>منوی ادمین دیده نمی‌شود</td><td>با شماره ادمین اول وارد نشده‌اید؛ نقش را در <code class="inline">/admin/users</code> چک کنید</td></tr>
       <tr><td>policy ناشناخته در صفحه جدید</td><td>کلید مجوز در <code class="inline">IPermissionCatalog</code> نیست یا املایش با <code class="inline">Policy</code> فرق دارد</td></tr>
       <tr><td>مایگریشن جدول ماژول را نساخت</td><td>ماژول در DI ثبت نشده (<code class="inline">AddSingleton&lt;IpackettransferModule,…&gt;</code>) یا پروژه اشتباه به <code class="inline">dotnet ef</code> داده‌اید</td></tr>
-      <tr><td>کد OTP نمی‌رسد</td><td><code class="inline">Sms:Provider</code> روی Fake است (لاگ را ببینید) یا سقف ۳ کد در ۱۵ دقیقه خورده‌اید</td></tr>
+      <tr><td>ورود ناموفق با چند تلاش</td><td>حساب ۱۵ دقیقه قفل موقت شده است؛ صبر کنید یا از ادمین بخواهید رمز را بازنشانی کند</td></tr>
       <tr><td><b>«A second operation was started on this context»</b> هنگام رفتن به صفحه (مثل <code class="inline">/notifications</code>)</td><td>دو کامپوننت هم‌زمان روی <b>یک</b> <code class="inline">DbContext</code> سیرکیت کوئری زدند. در Blazor Server، هر سیرکیت یک <code class="inline">DbContext</code> اسکوپ‌شده دارد. <b>راه‌حل:</b> داده‌ای که در <code class="inline">OnInitializedAsync</code> یک کامپوننت مشترک داخل Layout لازم دارید، با fetch از یک endpoint سبک JSON بخوانید (نه <code class="inline">@inject</code> سرویس مدار). نمونهٔ درست: <code class="inline">NotificationBell</code> و <code class="inline">PushSubscribeButton</code> — هر دو <code class="inline">packettransferApi.get()</code> می‌زنند.</td></tr>
       <tr><td>خطای رندر فقط در مرورگر (نه در تست)</td><td>کد JS‌بین‌رایانه (<code class="inline">IJSRuntime</code>) را در <code class="inline">OnAfterRenderAsync</code> بگذارید و <code class="inline">RendererInfo.Name == "Static"</code> را چک کنید؛ در prerender استاتیک JS در دسترس نیست.</td></tr>
     </table>

@@ -18,7 +18,7 @@
 | `packettransfer.Application` | سرویس‌ها، DTOها، Jobs، ایمپورت/اکسپورت، Helpers | نه (مگر سرویس پایه‌ای جدید) |
 | `packettransfer.Infrastructure` | `DbContext`، ریپازیتوری‌ها، `RoleSeeder`، فرستنده‌ها، درگاه‌ها | نه |
 | `packettransfer.Tests` | تست‌ها (xunit + Moq + InMemory) | بله — برای هر فیچر تست اضافه کن |
-| `PktOrders/` (پیشنهاد نام برای ماژول بعدی) | الگوی ماژول دامنه جدا: انتیتی + `IPlatformModule` + ریپازیتوری/سرویس خودش | بله — دامنه جدید = پروژه جدا |
+| `packettransfer.Distribution` | ماژول دامنهٔ توزیع بسته: انتیتی `PackageDelivery` + `DistributionModule` + ریپو/سرویس خودش + `IDistributionUnitOfWork`؛ مجوزها `distribution.manage`/`distribution.deliver`، نقش `Distributor`، صفحات `/admin/distribution` و `/deliver` | بله — دامنه جدید = پروژه جدا |
 
 ## قانون طلایی
 
@@ -35,7 +35,7 @@ dotnet ef migrations add <Name> --project packettransfer.App --startup-project p
 ```
 
 - `appsettings.json` در گیت نیست؛ از `appsettings.json.example` کپی کن. رشته اتصال واقعی و Secrets هرگز کامیت نشود.
-- ادمین اول: `Identity:FirstAdminPhoneNumber` + اولین ورود OTP. هیچ میان‌بر ورود (dev-login) در کد نیست و نباید اضافه شود.
+- ورود فقط با نام کاربری/ایمیل و رمز است؛ ثبت‌نام خودکار و ورود موبایلی حذف شده. اولین ادمین با `tools/create-admin.sql` ساخته می‌شود؛ بعد بقیه کاربران از `/admin/users`.
 
 ## قراردادهای کد
 

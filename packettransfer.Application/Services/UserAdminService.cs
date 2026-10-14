@@ -11,7 +11,7 @@ namespace packettransfer.Application.Services;
 public interface IUserAdminService
 {
     /// <summary>
-    /// فهرست صفحه‌بندی‌شدهٔ کاربران با جست‌وجو (شماره، نام، ایمیل). نقش‌های هر کاربر
+    /// فهرست صفحه‌بندی‌شدهٔ کاربران با جست‌وجو (نام کاربری، شماره، نام، ایمیل). نقش‌های هر کاربر
     /// فقط برای همان صفحه خوانده می‌شوند تا لیست هزاران‌نفره N+1 نشود.
     /// </summary>
     Task<PagedResult<UserListItemDto>> GetUsersPagedAsync(string? search, int page, int pageSize);
@@ -22,6 +22,14 @@ public interface IUserAdminService
     Task<IdentityResult> CreateUserAsync(CreateUserDto model);
     Task<IdentityResult> UpdateUserAsync(UpdateUserDto model);
     Task<IdentityResult> DeleteUserAsync(string userId, string currentUserId);
+
+    /// <summary>
+    /// تعیین رمز جدید برای کاربر توسط ادمین (جایگزین «فراموشی رمز» — ورود موبایلی
+    /// حذف شده و کاربر راه خودکار برای بازیابی رمز ندارد). توکن‌های API قبلی هم
+    /// لغو می‌شوند تا نشست‌های قبلی با رمز جدید بی‌اعتبار شوند.
+    /// </summary>
+    Task<IdentityResult> ResetPasswordAsync(string userId, string newPassword);
+
     Task<List<RoleDto>> GetAllRolesAsync();
 }
 
@@ -31,14 +39,16 @@ public class UserAdminService : IUserAdminService
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IAuditService _audit;
     private readonly IHttpContextAccessor _httpContext;
+    private readonly IApiTokenService _tokens;
 
     public UserAdminService(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
-        IAuditService audit, IHttpContextAccessor httpContext)
+        IAuditService audit, IHttpContextAccessor httpContext, IApiTokenService tokens)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _audit = audit;
         _httpContext = httpContext;
+        _tokens = tokens;
     }
 
     /// <summary>عامل فعلی (ادمین انجام‌دهنده) برای رد حسابرسی؛ بیرون از درخواست HTTP تهی است.</summary>
@@ -60,7 +70,7 @@ public class UserAdminService : IUserAdminService
             if (term.Length > 0)
             {
                 query = query.Where(PersianSearch.ContainsNormalized<ApplicationUser>(
-                    term, u => u.PhoneNumber, u => u.FullName, u => u.Email));
+                    term, u => u.UserName, u => u.PhoneNumber, u => u.FullName, u => u.Email));
             }
         }
 
@@ -77,7 +87,7 @@ public class UserAdminService : IUserAdminService
         {
             var roles = await _userManager.GetRolesAsync(user);
             items.Add(new UserListItemDto(
-                user.Id, user.PhoneNumber, user.FullName, user.Email, roles.ToList()));
+                user.Id, user.UserName, user.PhoneNumber, user.FullName, user.Email, roles.ToList()));
         }
 
         return new PagedResult<UserListItemDto>
@@ -95,7 +105,7 @@ public class UserAdminService : IUserAdminService
         if (user is null) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
-        return new UserListItemDto(user.Id, user.PhoneNumber, user.FullName, user.Email, roles.ToList());
+        return new UserListItemDto(user.Id, user.UserName, user.PhoneNumber, user.FullName, user.Email, roles.ToList());
     }
 
     public async Task<IdentityResult> SetRolesAsync(string userId, List<string> roleNames)
@@ -145,7 +155,7 @@ public class UserAdminService : IUserAdminService
         }
 
         await _audit.LogEventAsync("user.roles-changed", ActorName,
-            $"نقش‌های کاربر {user.PhoneNumber} به «{string.Join("، ", roleNames)}» تغییر کرد.");
+            $"نقش‌های کاربر {user.UserName} به «{string.Join("، ", roleNames)}» تغییر کرد.");
         return IdentityResult.Success;
     }
 
@@ -157,8 +167,19 @@ public class UserAdminService : IUserAdminService
                 { Description = "نام کامل نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد." });
         }
 
-        // شماره همیشه با ارقام انگلیسی ذخیره می‌شود تا جست‌وجو و ورود یکدست باشد
-        var phone = PersianSearch.NormalizePhone(model.PhoneNumber);
+        var userName = model.UserName.Trim();
+        var existingByName = await _userManager.FindByNameAsync(userName);
+        if (existingByName is not null)
+        {
+            return IdentityResult.Failed(new IdentityError { Description = "این نام کاربری قبلاً استفاده شده است." });
+        }
+
+        // شماره موبایل اختیاری است و فقط جنبهٔ اطلاعاتی دارد (ورود با آن انجام نمی‌شود)
+        string? phone = null;
+        if (!string.IsNullOrWhiteSpace(model.PhoneNumber))
+        {
+            phone = PersianSearch.NormalizePhone(model.PhoneNumber);
+        }
 
         if (!string.IsNullOrWhiteSpace(model.Email))
         {
@@ -171,16 +192,14 @@ public class UserAdminService : IUserAdminService
 
         var user = new ApplicationUser
         {
-            UserName = phone,
+            UserName = userName,
             PhoneNumber = phone,
             Email = model.Email,
             FullName = model.FullName,
             EmailConfirmed = true
         };
 
-        var result = string.IsNullOrWhiteSpace(model.Password)
-            ? await _userManager.CreateAsync(user)
-            : await _userManager.CreateAsync(user, model.Password);
+        var result = await _userManager.CreateAsync(user, model.Password ?? string.Empty);
 
         if (result.Succeeded && model.RoleNames is { Count: > 0 })
         {
@@ -202,7 +221,7 @@ public class UserAdminService : IUserAdminService
         if (result.Succeeded)
         {
             await _audit.LogEventAsync("user.created", ActorName,
-                $"کاربر {phone} ساخته شد.");
+                $"کاربر {userName} ساخته شد.");
         }
 
         return result;
@@ -220,10 +239,16 @@ public class UserAdminService : IUserAdminService
                 { Description = "نام کامل نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد." });
         }
 
-        var phone = PersianSearch.NormalizePhone(model.PhoneNumber);
-        var phoneOwner = await _userManager.FindByNameAsync(phone);
-        if (phoneOwner is not null && phoneOwner.Id != user.Id)
-            return IdentityResult.Failed(new IdentityError { Description = "این شماره موبایل برای کاربر دیگری ثبت شده است." });
+        var userName = model.UserName.Trim();
+        var nameOwner = await _userManager.FindByNameAsync(userName);
+        if (nameOwner is not null && nameOwner.Id != user.Id)
+            return IdentityResult.Failed(new IdentityError { Description = "این نام کاربری برای کاربر دیگری ثبت شده است." });
+
+        string? phone = null;
+        if (!string.IsNullOrWhiteSpace(model.PhoneNumber))
+        {
+            phone = PersianSearch.NormalizePhone(model.PhoneNumber);
+        }
 
         var email = model.Email?.Trim();
         if (!string.IsNullOrWhiteSpace(email))
@@ -234,16 +259,15 @@ public class UserAdminService : IUserAdminService
         }
 
         user.FullName = model.FullName.Trim();
+        user.UserName = userName;
         user.PhoneNumber = phone;
-        // ورود با OTP و نام کاربری بر اساس شماره است؛ شماره و UserName باید با هم بمانند
-        user.UserName = phone;
         user.Email = string.IsNullOrWhiteSpace(email) ? null : email;
 
         var updateResult = await _userManager.UpdateAsync(user);
         if (updateResult.Succeeded)
         {
             await _audit.LogEventAsync("user.updated", ActorName,
-                $"کاربر {phone} ویرایش شد.");
+                $"کاربر {userName} ویرایش شد.");
         }
 
         return updateResult;
@@ -275,10 +299,29 @@ public class UserAdminService : IUserAdminService
         if (deleteResult.Succeeded)
         {
             await _audit.LogEventAsync("user.deleted", ActorName,
-                $"کاربر {user.PhoneNumber} حذف شد.");
+                $"کاربر {user.UserName} حذف شد.");
         }
 
         return deleteResult;
+    }
+
+    public async Task<IdentityResult> ResetPasswordAsync(string userId, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+            return IdentityResult.Failed(new IdentityError { Description = "کاربر یافت نشد." });
+
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+        if (!result.Succeeded)
+            return result;
+
+        // رمز عوض شد: توکن‌های API قبلی دیگر معتبر نیستند تا نشست‌های قبلی بسته شوند
+        await _tokens.RevokeAllAsync(user.Id);
+
+        await _audit.LogEventAsync("user.password-reset", ActorName,
+            $"رمز کاربر {user.UserName} توسط ادمین بازنشانی شد.");
+        return IdentityResult.Success;
     }
 
     public async Task<List<RoleDto>> GetAllRolesAsync()

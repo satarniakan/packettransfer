@@ -66,7 +66,6 @@ public class SettingServiceTests
         var (service, _, _) = Build();
 
         Assert.Equal("سامانه", await service.GetAsync(FrameworkSettingKeys.SiteName));
-        Assert.Contains("{Code}", await service.GetAsync(FrameworkSettingKeys.OtpSmsTemplate));
     }
 
     [Fact]

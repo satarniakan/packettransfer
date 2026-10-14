@@ -20,7 +20,6 @@ public static class DependencyInjection
         services.TryAddSingleton<ISettingCatalog, EmptySettingCatalog>();
 
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IOtpService, OtpService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IUserAdminService, UserAdminService>();

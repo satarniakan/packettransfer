@@ -51,8 +51,6 @@ public class packettransferDbContext : IdentityDbContext<ApplicationUser>
     internal IReadOnlyList<IpackettransferModule> Modules => _modules;
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
-    public DbSet<OtpThrottle> OtpThrottles => Set<OtpThrottle>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UserApiToken> ApiTokens => Set<UserApiToken>();
@@ -74,19 +72,6 @@ public class packettransferDbContext : IdentityDbContext<ApplicationUser>
             e.Property(x => x.UserEmail).HasMaxLength(256);
             e.Property(x => x.Details).IsRequired();
             e.HasIndex(x => x.OccurredAt);
-        });
-
-        builder.Entity<OtpCode>(e =>
-        {
-            e.HasKey(x => x.Id);
-            e.HasIndex(x => x.PhoneNumber);
-            e.HasIndex(x => x.ExpiresAt);
-        });
-
-        builder.Entity<OtpThrottle>(e =>
-        {
-            e.HasKey(x => x.PhoneNumber);
-            e.Property(x => x.PhoneNumber).HasMaxLength(32);
         });
 
         builder.Entity<UserApiToken>(e =>

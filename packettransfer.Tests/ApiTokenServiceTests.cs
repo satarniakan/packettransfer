@@ -28,7 +28,6 @@ public class ApiTokenServiceTests
     {
         public Dictionary<string, UserApiToken> TokensByHash { get; } = new(StringComparer.Ordinal);
         public Mock<IApiTokenRepository> Repo { get; } = new();
-        public Mock<IOtpService> Otp { get; } = new();
         public Mock<UserManager<ApplicationUser>> Users { get; } = CreateUserManager();
         public Mock<SignInManager<ApplicationUser>> SignIn { get; } = CreateSignInManager();
         public Mock<IUserClaimsPrincipalFactory<ApplicationUser>> Factory { get; } = new();
@@ -54,7 +53,7 @@ public class ApiTokenServiceTests
                 .ReturnsAsync("180");
 
             return new ApiTokenService(
-                Repo.Object, Otp.Object, Users.Object, SignIn.Object, Factory.Object, Uow.Object,
+                Repo.Object, Users.Object, SignIn.Object, Factory.Object, Uow.Object,
                 settings.Object,
                 new ConfigurationBuilder().Build(),
                 NullLogger<ApiTokenService>.Instance,
@@ -79,7 +78,7 @@ public class ApiTokenServiceTests
         }
     }
 
-    private static ApplicationUser User(string id) => new() { Id = id, UserName = "09120000000" };
+    private static ApplicationUser User(string id) => new() { Id = id, UserName = "ali.m" };
 
     [Fact]
     public async Task IssueAsync_StoresOnlyHash_ReturnsRawOnce()
@@ -163,20 +162,6 @@ public class ApiTokenServiceTests
     }
 
     [Fact]
-    public async Task VerifyOtpAndIssueTokenAsync_InvalidOtp_ReturnsFailure()
-    {
-        var h = new Harness();
-        var service = h.Build();
-        h.Otp.Setup(o => o.VerifyOtpAsync("09120000000", "000000")).ReturnsAsync(false);
-
-        var result = await service.VerifyOtpAndIssueTokenAsync("09120000000", "000000", null);
-
-        Assert.False(result.Succeeded);
-        Assert.Null(result.Token);
-        Assert.Empty(h.TokensByHash);
-    }
-
-    [Fact]
     public async Task LoginWithPassword_UnknownUser_ReturnsFailure_WithoutPasswordCheck()
     {
         var h = new Harness();
@@ -199,11 +184,11 @@ public class ApiTokenServiceTests
         var h = new Harness();
         var service = h.Build();
         var user = User("u1");
-        h.Users.Setup(u => u.FindByNameAsync("09120000000")).ReturnsAsync(user);
+        h.Users.Setup(u => u.FindByNameAsync("ali.m")).ReturnsAsync(user);
         h.SignIn.Setup(s => s.CheckPasswordSignInAsync(user, "wrong", true))
             .ReturnsAsync(SignInResult.Failed);
 
-        var result = await service.LoginWithPasswordAndIssueTokenAsync("09120000000", "wrong", "Goshi");
+        var result = await service.LoginWithPasswordAndIssueTokenAsync("ali.m", "wrong", "Goshi");
 
         Assert.False(result.Succeeded);
         Assert.Equal("u1", result.UserId);
@@ -232,11 +217,11 @@ public class ApiTokenServiceTests
         var h = new Harness();
         var service = h.Build();
         var user = User("u1");
-        h.Users.Setup(u => u.FindByNameAsync("09120000000")).ReturnsAsync(user);
+        h.Users.Setup(u => u.FindByNameAsync("ali.m")).ReturnsAsync(user);
         h.SignIn.Setup(s => s.CheckPasswordSignInAsync(user, "correct", true))
             .ReturnsAsync(SignInResult.Success);
 
-        var result = await service.LoginWithPasswordAndIssueTokenAsync("09120000000", "correct", "Goshi");
+        var result = await service.LoginWithPasswordAndIssueTokenAsync("ali.m", "correct", "Goshi");
 
         Assert.True(result.Succeeded);
         Assert.StartsWith(ApiTokenService.TokenPrefix, result.Token);

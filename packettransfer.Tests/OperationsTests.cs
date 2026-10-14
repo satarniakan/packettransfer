@@ -152,11 +152,11 @@ public class OperationsTests
             users.Object, Mock.Of<IAuditService>(), Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
 
         using var stream = Workbook(
-            ["Phone", "FullName", "Email"],
-            ["09120000001", "کاربر یک", "u1@test.ir"],
-            ["", "بدون شماره", ""],
-            ["09120000001", "تکراری", ""],
-            ["0999", "نامعتبر", ""]);
+            ["UserName", "FullName", "Password", "Email"],
+            ["ali.m", "کاربر یک", "reza1234", "u1@test.ir"],
+            ["", "بدون نام کاربری", "reza1234", ""],
+            ["ali.m", "تکراری", "reza1234", ""],
+            ["b", "کوتاه", "reza1234", ""]);
 
         var result = await service.ImportAsync(stream);
 
@@ -165,7 +165,7 @@ public class OperationsTests
         Assert.Equal(3, result.RowErrors.Count);
         // نقش پیش‌فرض «کاربر» به ساخته‌شده داده می‌شود
         users.Verify(u => u.CreateUserAsync(It.Is<CreateUserDto>(d =>
-            d.PhoneNumber == "09120000001" && d.RoleNames.Contains(Roles.User))), Times.Once);
+            d.UserName == "ali.m" && d.RoleNames.Contains(Roles.User))), Times.Once);
     }
 
     [Fact]
@@ -179,15 +179,15 @@ public class OperationsTests
             users.Object, Mock.Of<IAuditService>(), Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
 
         using var stream = Workbook(
-            ["شماره موبایل", "نام"],
-            ["۰۹۱۲۰۰۰۰۰۰۲", "کاربر دو"]);
+            ["نام کاربری", "نام", "رمز", "شماره موبایل"],
+            ["sara.k", "کاربر دو", "reza1234", "۰۹۱۲۰۰۰۰۰۰۲"]);
 
         var result = await service.ImportAsync(stream);
 
         Assert.Equal(1, result.ImportedCount);
         Assert.Empty(result.RowErrors);
         users.Verify(u => u.CreateUserAsync(It.Is<CreateUserDto>(d =>
-            d.PhoneNumber == "09120000002")), Times.Once);
+            d.UserName == "sara.k" && d.PhoneNumber == "09120000002")), Times.Once);
     }
 
     [Fact]
@@ -201,8 +201,8 @@ public class OperationsTests
             users.Object, Mock.Of<IAuditService>(), Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
 
         using var stream = Workbook(
-            ["Phone", "FullName"],
-            ["09120000003", "کاربر سه"]);
+            ["UserName", "FullName", "Password"],
+            ["reza.p", "کاربر سه", "reza1234"]);
 
         var result = await service.ImportAsync(stream);
 

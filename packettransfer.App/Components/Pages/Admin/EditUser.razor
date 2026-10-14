@@ -14,7 +14,7 @@
 <div class="d-flex justify-content-between align-items-start mb-3">
     <div>
         <h3 class="mb-1">ویرایش کاربر</h3>
-        <div class="text-body-secondary small">نام، شماره موبایل و ایمیل کاربر را ویرایش کنید؛ نقش‌ها از صفحهٔ «تغییر نقش» مدیریت می‌شوند.</div>
+        <div class="text-body-secondary small">نام کاربری، نام، شماره موبایل و ایمیل کاربر را ویرایش کنید؛ نقش‌ها از صفحهٔ «تغییر نقش» مدیریت می‌شوند.</div>
     </div>
     <a href="/admin/users" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-right me-1"></i>بازگشت به فهرست
@@ -34,14 +34,28 @@ else
             <AppTextField @bind-Value="model.FullName" Label="نام کامل" Required="true"
                           Placeholder="نام و نام خانوادگی" />
 
+            <AppTextField @bind-Value="model.UserName" Label="نام کاربری" Required="true"
+                          Placeholder="مثال: ali.m" Hint="برای ورود استفاده می‌شود؛ یکتا." />
+
             <div class="row">
                 <div class="col-md-6">
-                    <AppTextField @bind-Value="model.PhoneNumber" Label="شماره موبایل" Required="true"
-                                  Placeholder="مثال: 09123456789" Hint="همان نام کاربری کاربر است؛ ورود با OTP از همین شماره انجام می‌شود." />
+                    <AppTextField @bind-Value="model.PhoneNumber" Label="شماره موبایل (اختیاری)"
+                                  Placeholder="مثال: 09123456789" Hint="فقط اطلاعاتی است." />
                 </div>
                 <div class="col-md-6">
                     <AppTextField @bind-Value="model.Email" Label="ایمیل (اختیاری)"
                                   Placeholder="example@domain.com" Hint="برای اطلاع‌رسانی ایمیلی استفاده می‌شود." />
+                </div>
+            </div>
+        </div>
+
+        <div class="card-panel mb-3">
+            <h6 class="form-section-title"><i class="bi bi-key"></i>بازنشانی رمز عبور</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <AppTextField @bind-Value="newPassword" Label="رمز جدید (اختیاری)"
+                                  InputType="password" Placeholder="حداقل ۶ کاراکتر"
+                                  Hint="فقط اگر می‌خواهید رمز کاربر را عوض کنید پر کنید." />
                 </div>
             </div>
         </div>
@@ -74,6 +88,7 @@ else
     [Parameter] public string UserId { get; set; } = string.Empty;
 
     private UpdateUserDto? model;
+    private string? newPassword;
     private bool isSaving;
     private string? errorMessage;
 
@@ -90,8 +105,9 @@ else
         model = new UpdateUserDto
         {
             UserId = user.UserId,
+            UserName = user.UserName ?? string.Empty,
             FullName = user.FullName ?? string.Empty,
-            PhoneNumber = user.PhoneNumber ?? string.Empty,
+            PhoneNumber = user.PhoneNumber,
             Email = user.Email
         };
     }
@@ -106,9 +122,10 @@ else
             errorMessage = "نام کامل الزامی است.";
             return;
         }
-        if (!System.Text.RegularExpressions.Regex.IsMatch(model.PhoneNumber ?? string.Empty, @"^09\d{9}$"))
+        if (model.UserName is null || model.UserName.Trim().Length < 3 ||
+            model.UserName.Any(char.IsWhiteSpace))
         {
-            errorMessage = "شماره موبایل معتبر نیست (مثال: 09123456789).";
+            errorMessage = "نام کاربری معتبر نیست (حداقل ۳ کاراکتر بدون فاصله).";
             return;
         }
 
@@ -116,15 +133,24 @@ else
         try
         {
             var result = await UserAdminService.UpdateUserAsync(model);
-            if (result.Succeeded)
-            {
-                ToastService.ShowSuccess("اطلاعات کاربر به‌روزرسانی شد.");
-                NavigationManager.NavigateTo("/admin/users");
-            }
-            else
+            if (!result.Succeeded)
             {
                 errorMessage = string.Join("، ", result.Errors.Select(e => e.Description));
+                return;
             }
+
+            if (!string.IsNullOrWhiteSpace(newPassword))
+            {
+                var passResult = await UserAdminService.ResetPasswordAsync(model.UserId, newPassword.Trim());
+                if (!passResult.Succeeded)
+                {
+                    errorMessage = string.Join("، ", passResult.Errors.Select(e => e.Description));
+                    return;
+                }
+            }
+
+            ToastService.ShowSuccess("اطلاعات کاربر به‌روزرسانی شد.");
+            NavigationManager.NavigateTo("/admin/users");
         }
         catch (Exception ex)
         {

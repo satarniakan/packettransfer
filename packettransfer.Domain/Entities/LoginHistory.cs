@@ -15,7 +15,7 @@ public class LoginHistory
 
     public bool Succeeded { get; set; }
 
-    /// <summary>روش ورود: Password، Otp، ApiToken، Impersonation.</summary>
+    /// <summary>روش ورود: Password، ApiToken، Impersonation.</summary>
     public string Method { get; set; } = string.Empty;
 
     public string? IpAddress { get; set; }

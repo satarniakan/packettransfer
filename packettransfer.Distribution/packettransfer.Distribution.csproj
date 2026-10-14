@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- TargetFramework / Nullable / ImplicitUsings در Directory.Build.props مشترک‌اند. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- UserManager و TimeProvider از فریم‌ورک ASP.NET Core می‌آیند. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\packettransfer.Domain\packettransfer.Domain.csproj" />
+    <ProjectReference Include="..\packettransfer.Application\packettransfer.Application.csproj" />
+    <ProjectReference Include="..\packettransfer.Infrastructure\packettransfer.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

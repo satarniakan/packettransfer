@@ -1,22 +1,5 @@
--- ============================================================
--- اسکیمای دیتابیس فریم‌ورک (تولیدشده از مایگریشن‌ها — دستی ویرایش نکنید)
--- بازسازی با: dotnet ef migrations script --project packettransfer.App --startup-project packettransfer.App -o docs/database.sql
--- ------------------------------------------------------------
--- ریستور روی دیتابیس تازه (SQL Server):
---   sqlcmd -S <server> -U sa -P '<pass>' -Q "CREATE DATABASE [EmptyFramework]"
---   sqlcmd -S <server> -U sa -P '<pass>' -d EmptyFramework -i docs/database.sql
--- روی داکر (سرویس sqlserver همین ریپو):
---   docker compose up -d sqlserver
---   docker compose cp docs/database.sql sqlserver:/tmp/database.sql
---   docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Dev_Pass123!' -C -Q "CREATE DATABASE [EmptyFramework]"
---   docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Dev_Pass123!' -C -d EmptyFramework -i /tmp/database.sql
--- نکته: نقش‌ها (Admin/User) را خودِ اپ هنگام استارتاپ می‌سازد (RoleSeeder) و
--- ادمین اول با Identity:FirstAdminPhoneNumber در اولین ورود OTP ساخته می‌شود؛
--- پس سید اضافه لازم نیست. خودِ اپ هم با MigrateAsync همین اسکیما را می‌سازد؛
--- این فایل برای وقتی است که بخواهید دیتابیس را بیرون از اپ بسازید/ریستور کنید.
--- ============================================================
-
-IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+﻿-- ============================================================
+--IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
 BEGIN
     CREATE TABLE [__EFMigrationsHistory] (
         [MigrationId] nvarchar(150) NOT NULL,
@@ -265,6 +248,57 @@ CREATE INDEX [IX_PushSubscriptions_UserId] ON [PushSubscriptions] ([UserId]);
 
 INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
 VALUES (N'20261010075248_InitialCreate', N'10.0.12');
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+DROP TABLE [OtpCodes];
+
+DROP TABLE [OtpThrottles];
+
+INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+VALUES (N'20261014115610_RemoveMobileLogin', N'10.0.12');
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+CREATE TABLE [PackageDeliveries] (
+    [Id] int NOT NULL IDENTITY,
+    [City] nvarchar(100) NOT NULL,
+    [Neighborhood] nvarchar(100) NULL,
+    [Zone] nvarchar(100) NULL,
+    [District] nvarchar(100) NULL,
+    [DeliveryCode] nvarchar(64) NOT NULL,
+    [NationalCode] nvarchar(16) NOT NULL,
+    [ScheduledDate] datetime2 NULL,
+    [AssigneeUserId] nvarchar(450) NOT NULL,
+    [Status] int NOT NULL,
+    [DeliveredAtUtc] datetime2 NULL,
+    [DeliveredByUserId] nvarchar(max) NULL,
+    [CreatedByUserId] nvarchar(450) NOT NULL,
+    [CreatedAt] datetime2 NOT NULL,
+    [UpdatedByUserId] nvarchar(450) NULL,
+    [UpdatedAt] datetime2 NULL,
+    [IsDeleted] bit NOT NULL DEFAULT CAST(0 AS bit),
+    CONSTRAINT [PK_PackageDeliveries] PRIMARY KEY ([Id])
+);
+
+CREATE INDEX [IX_PackageDeliveries_AssigneeUserId_Status] ON [PackageDeliveries] ([AssigneeUserId], [Status]);
+
+CREATE INDEX [IX_PackageDeliveries_City] ON [PackageDeliveries] ([City]);
+
+CREATE UNIQUE INDEX [IX_PackageDeliveries_DeliveryCode] ON [PackageDeliveries] ([DeliveryCode]);
+
+CREATE INDEX [IX_PackageDeliveries_IsDeleted] ON [PackageDeliveries] ([IsDeleted]);
+
+CREATE INDEX [IX_PackageDeliveries_NationalCode] ON [PackageDeliveries] ([NationalCode]);
+
+CREATE INDEX [IX_PackageDeliveries_Status] ON [PackageDeliveries] ([Status]);
+
+INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+VALUES (N'20261014122956_AddDistribution', N'10.0.12');
 
 COMMIT;
 GO

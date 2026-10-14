@@ -1,63 +1,18 @@
 using System.Security.Claims;
 using packettransfer.Application.DTOs;
 using packettransfer.Application.Services;
-using packettransfer.Domain.Exceptions;
-using packettransfer.Domain.Interfaces;
 
 namespace packettransfer.App.Endpoints;
 
 /// <summary>
-/// API موبایل (نسخه۱): ورود OTP و مدیریت توکن‌ها/نشست‌ها با JSON.
+/// API نسخه۱: ورود با نام کاربری/ایمیل و رمز + مدیریت توکن‌ها/نشست‌ها با JSON.
 /// احراز هویت با <c>Authorization: Bearer pat_...</c> و policy مخصوص «Api» است، نه کوکی.
-/// محدودیت نرخِ همان مسیرهای وب (otp-request / otp-verify) اینجا هم اعمال می‌شود.
 /// </summary>
 public static class AuthApiEndpoints
 {
     public static IEndpointRouteBuilder MapAuthApiEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/auth");
-
-        group.MapPost("/otp/request", async (HttpContext http, IAuthService auth,
-            ICaptchaValidator captcha, OtpRequestApiDto dto) =>
-        {
-            try
-            {
-                if (!await captcha.ValidateAsync(dto.CaptchaToken,
-                        http.Connection.RemoteIpAddress?.ToString()))
-                {
-                    return Results.BadRequest(new { message = "اعتبارسنجی امنیتی ناموفق بود." });
-                }
-
-                await auth.RequestOtpAsync(dto.PhoneNumber);
-                return Results.Ok(new { message = "کد ورود ارسال شد." });
-            }
-            catch (BusinessRuleException ex)
-            {
-                return Results.BadRequest(new { message = ex.Message });
-            }
-        }).RequireRateLimiting("otp-request");
-
-        group.MapPost("/otp/verify", async (
-            HttpContext http,
-            IApiTokenService tokens,
-            ILoginHistoryService history,
-            OtpVerifyApiDto dto) =>
-        {
-            var result = await tokens.VerifyOtpAndIssueTokenAsync(dto.PhoneNumber, dto.Code, dto.DeviceName);
-
-            await history.RecordAsync(
-                userId: result.UserId,
-                userName: dto.PhoneNumber,
-                succeeded: result.Succeeded,
-                method: "ApiToken",
-                ipAddress: http.Connection.RemoteIpAddress?.ToString(),
-                userAgent: http.Request.Headers.UserAgent.ToString(),
-                failureReason: result.Succeeded ? null : "invalid-otp");
-
-            return result.Succeeded
-                ? Results.Ok(new TokenResponseDto(result.Token!, result.ExpiresAtUtc!.Value))
-                : Results.Unauthorized();
-        }).RequireRateLimiting("otp-verify");
 
         group.MapPost("/login", async (
             HttpContext http,
@@ -81,36 +36,6 @@ public static class AuthApiEndpoints
                 ? Results.Ok(new TokenResponseDto(result.Token!, result.ExpiresAtUtc!.Value))
                 : Results.Unauthorized();
         }).RequireRateLimiting("login");
-
-        group.MapPost("/password/reset", async (
-            HttpContext http,
-            IAuthService auth,
-            ILoginHistoryService history,
-            PasswordResetApiDto dto) =>
-        {
-            var result = await auth.ResetPasswordWithOtpAsync(
-                dto.PhoneNumber, dto.Code, dto.NewPassword, dto.ConfirmPassword);
-
-            await history.RecordAsync(
-                userId: result.UserId,
-                userName: dto.PhoneNumber,
-                succeeded: result.Status == PasswordResetStatus.Success,
-                method: "ApiToken",
-                ipAddress: http.Connection.RemoteIpAddress?.ToString(),
-                userAgent: http.Request.Headers.UserAgent.ToString(),
-                failureReason: result.Status == PasswordResetStatus.Success
-                    ? null
-                    : result.Status.ToString());
-
-            return result.Status switch
-            {
-                PasswordResetStatus.Success => Results.Ok(new { message = "رمز عبور تعیین شد." }),
-                PasswordResetStatus.InvalidOtp => Results.Unauthorized(),
-                PasswordResetStatus.UserNotFound => Results.NotFound(new { message = "کاربر یافت نشد." }),
-                PasswordResetStatus.PasswordMismatch => Results.BadRequest(new { message = "رمز و تکرار آن یکسان نیستند." }),
-                _ => Results.BadRequest(new { message = "تعیین رمز ناموفق بود." })
-            };
-        }).RequireRateLimiting("otp-verify");
 
         group.MapGet("/tokens", async (ClaimsPrincipal user, IApiTokenService tokens) =>
         {

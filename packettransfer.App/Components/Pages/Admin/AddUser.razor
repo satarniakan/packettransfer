@@ -13,7 +13,7 @@
 <div class="d-flex justify-content-between align-items-start mb-3">
     <div>
         <h3 class="mb-1">افزودن کاربر جدید</h3>
-        <div class="text-body-secondary small">اطلاعات کاربر جدید را وارد کنید؛ فیلدهای ستاره‌دار الزامی هستند.</div>
+        <div class="text-body-secondary small">اطلاعات کاربر جدید را وارد کنید؛ فیلدهای ستاره‌دار الزامی هستند. ورود کاربر فقط با نام کاربری و رمز عبور انجام می‌شود.</div>
     </div>
     <a href="/admin/users" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-right me-1"></i>بازگشت به فهرست
@@ -31,10 +31,13 @@
             <AppTextField @bind-Value="newUser!.FullName" Label="نام کامل" Required="true"
                           Placeholder="نام و نام خانوادگی" />
 
+            <AppTextField @bind-Value="newUser!.UserName" Label="نام کاربری" Required="true"
+                          Placeholder="مثال: ali.m" Hint="برای ورود استفاده می‌شود؛ حداقل ۳ کاراکتر بدون فاصله و یکتا." />
+
             <div class="row">
                 <div class="col-md-6">
-                    <AppTextField @bind-Value="newUser!.PhoneNumber" Label="شماره موبایل" Required="true"
-                                  Placeholder="مثال: 09123456789" Hint="برای ورود و بازیابی حساب کاربری استفاده می‌شود." />
+                    <AppTextField @bind-Value="newUser!.PhoneNumber" Label="شماره موبایل (اختیاری)"
+                                  Placeholder="مثال: 09123456789" Hint="فقط اطلاعاتی است؛ برای ورود استفاده نمی‌شود." />
                 </div>
                 <div class="col-md-6">
                     <AppTextField @bind-Value="newUser!.Email" Label="ایمیل (اختیاری)"

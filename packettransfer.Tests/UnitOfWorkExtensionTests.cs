@@ -51,7 +51,6 @@ public class UnitOfWorkExtensionTests
 
         var services = new ServiceCollection();
         services.AddSingleton(context);
-        services.AddSingleton(Mock.Of<IOtpRepository>());
         services.AddSingleton(Mock.Of<IAuditLogRepository>());
         services.AddSingleton(Mock.Of<INotificationRepository>());
         services.AddSingleton(Mock.Of<IOutboxRepository>());

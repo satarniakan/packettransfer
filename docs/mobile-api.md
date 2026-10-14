@@ -1,56 +1,23 @@
-# کتابچهٔ API موبایل (`/api/v1`)
+# کتابچهٔ API (`/api/v1`)
 
 پایه: `http://localhost:5000` (توسعه). مستندات خودکار فقط در Development: `/openapi/v1.json`.
 همهٔ ورودی/خروجی‌ها JSON با `Content-Type: application/json` هستند.
+ورود فقط با نام کاربری/ایمیل و رمز عبور است؛ ثبت‌نام خودکار وجود ندارد
+(کاربران را ادمین از صفحه «مدیریت کاربران» می‌سازد).
 
-## ورود
-
-### ۱. درخواست کد پیامکی
-
-```bash
-curl -X POST http://localhost:5000/api/v1/auth/otp/request \
-  -H 'Content-Type: application/json' \
-  -d '{"phoneNumber":"09120000000"}'
-# 200 {"message":"کد ورود ارسال شد."}
-# 400 {"message":"..."} — قفل موقت یا سقف درخواست
-# 429 — محدودیت نرخ (۳ درخواست در ۵ دقیقه برای هر IP)
-```
-
-### ۲-الف. تأیید کد و گرفتن توکن
-
-```bash
-curl -X POST http://localhost:5000/api/v1/auth/otp/verify \
-  -H 'Content-Type: application/json' \
-  -d '{"phoneNumber":"09120000000","code":"123456","deviceName":"گوشی من"}'
-# 200 {"token":"pat_...","expiresAtUtc":"2026-...Z"}
-# 401 — کد اشتباه/منقضی (پس از ۵ تلاش، شماره ۱۰ دقیقه قفل می‌شود)
-```
-
-### ۲-ب. ورود با رمز (وقتی پیامک قطع است)
+## ورود و گرفتن توکن
 
 ```bash
 curl -X POST http://localhost:5000/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"09120000000","password":"...","deviceName":"گوشی من"}'
+  -d '{"username":"ali.m","password":"...","deviceName":"..."}'
 # 200 {"token":"pat_...","expiresAtUtc":"..."}
 # 401 — نام کاربری/رمز اشتباه یا حساب قفل‌شده
 ```
 
-### فراموشی رمز (با کد پیامکی)
-
-```bash
-# اول کد بگیرید (مرحله ۱)، بعد:
-curl -X POST http://localhost:5000/api/v1/auth/password/reset \
-  -H 'Content-Type: application/json' \
-  -d '{"phoneNumber":"09120000000","code":"123456",
-       "newPassword":"...","confirmPassword":"..."}'
-# 200 {"message":"رمز عبور تعیین شد."}
-# 401 — کد نامعتبر | 404 — کاربر نیست | 400 — عدم تطابق یا سیاست رمز
-```
-
 ## استفاده از توکن
 
-متن خام توکن **فقط یک‌بار** دیده می‌شود؛ ذخیره‌اش کنید (Keychain/Keystore):
+متن خام توکن **فقط یک‌بار** دیده می‌شود؛ ذخیره‌اش کنید:
 
 ```bash
 TOKEN='pat_...'
@@ -74,7 +41,27 @@ curl -X DELETE http://localhost:5000/api/v1/auth/tokens -H "Authorization: Beare
 # 200 {"revoked":2}
 ```
 
-## پرداخت (موبایل)
+## توزیع بسته (اپ توزیع‌کننده)
+
+توکن را با همان `POST /api/v1/auth/login` (نام کاربری/رمز توزیع‌کننده) بگیرید:
+
+```bash
+# بسته‌های تحویل‌نشدهٔ من
+curl http://localhost:5000/api/v1/distribution/pending -H "Authorization: Bearer $TOKEN"
+# 200 [{"id":1,"city":"تهران","deliveryCode":"PKG-001","nationalCode":"...","status":0,...}]
+
+# ثبت تحویل (هر دو از اسکن بارکد گیرنده می‌آیند)
+curl -X POST http://localhost:5000/api/v1/distribution/deliver \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"deliveryCode":"PKG-001","nationalCode":"0023456789"}'
+# 200 {"message":"تحویل ثبت شد.",...} — کد تحویل و کد ملی با پنل یکی بود
+# 404 — بسته‌ای با این کد تحویل نیست
+# 409 — قبلاً تحویل شده (زمان و تحویل‌دهنده برمی‌گردد)
+# 403 — بسته به شما منتسب نیست
+# 400 — کد ملی با پنل یکسان نیست
+```
+
+## پرداخت
 
 ```bash
 # شروع پرداخت (مبلغ به تومان) → آدرس درگاه در مرورگر باز شود

@@ -27,6 +27,7 @@
     <ProjectReference Include="..\packettransfer.Domain\packettransfer.Domain.csproj" />
     <ProjectReference Include="..\packettransfer.Infrastructure\packettransfer.Infrastructure.csproj" />
     <ProjectReference Include="..\packettransfer.App\packettransfer.App.csproj" />
+    <ProjectReference Include="..\packettransfer.Distribution\packettransfer.Distribution.csproj" />
   </ItemGroup>
 
 </Project>

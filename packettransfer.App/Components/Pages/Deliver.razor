@@ -1,0 +1,294 @@
+@* packettransfer.App/Components/Pages/Deliver.razor — اپ PWA توزیع‌کننده *@
+@page "/deliver"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = packettransfer.Distribution.DistributionPermissions.Deliver)]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@using packettransfer.Distribution.DTOs
+@using packettransfer.Distribution.Services
+@using packettransfer.Application.Helpers
+@using System.Security.Claims
+@inject IDistributionService DistributionService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+@inject packettransfer.App.Services.ToastService ToastService
+@implements IAsyncDisposable
+<PageTitle>اپ توزیع‌کننده</PageTitle>
+
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-1">بسته‌های من</h3>
+        <div class="text-body-secondary small">
+            @if (packages is null)
+            {
+                <span>در حال بارگذاری…</span>
+            }
+            else
+            {
+                <span>@packages.Count بستهٔ تحویل‌نشده</span>
+            }
+        </div>
+    </div>
+    <button class="btn btn-primary" @onclick="ToggleDeliverPanel">
+        <i class="bi bi-upc-scan me-1"></i>تحویل جدید
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(resultMessage))
+{
+    <div class="alert @(resultSuccess ? "alert-success" : "alert-danger") mb-3">@resultMessage</div>
+}
+
+@if (showDeliverPanel)
+{
+    <div class="card-panel mb-3 border-primary">
+        <h6 class="form-section-title"><i class="bi bi-upc-scan"></i>ثبت تحویل با بارکد</h6>
+        <p class="small text-body-secondary">دو بارکد دست گیرنده را اسکن کنید (یا دستی وارد کنید) و «ثبت تحویل» را بزنید.</p>
+
+        <div class="mb-3">
+            <label class="form-label">کد ملی گیرنده</label>
+            <div class="input-group">
+                <input class="form-control" inputmode="numeric" placeholder="کد ملی ۱۰ رقمی"
+                       @bind="nationalCode" @bind:event="oninput" />
+                @if (scanSupported)
+                {
+                    <button class="btn btn-outline-secondary" @onclick="@(() => ToggleScan("national"))">
+                        <i class="bi bi-camera"></i> اسکن
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">کد تحویل</label>
+            <div class="input-group">
+                <input class="form-control" placeholder="کد تحویل بسته"
+                       @bind="deliveryCode" @bind:event="oninput" />
+                @if (scanSupported)
+                {
+                    <button class="btn btn-outline-secondary" @onclick="@(() => ToggleScan("delivery"))">
+                        <i class="bi bi-camera"></i> اسکن
+                    </button>
+                }
+            </div>
+        </div>
+
+        @if (scanningField is not null)
+        {
+            <div class="mb-3 text-center">
+                <video @ref="videoElement" playsinline muted
+                       style="width: 100%; max-width: 360px; border-radius: 8px; background: #000;"></video>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary mt-2" @onclick="StopScan">بستن دوربین</button>
+                </div>
+            </div>
+        }
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-success flex-grow-1" disabled="@isSaving" @onclick="SubmitDelivery">
+                @if (isSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                }
+                ثبت تحویل
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="ToggleDeliverPanel">انصراف</button>
+        </div>
+    </div>
+}
+
+@if (packages is null)
+{
+    <LoadingSkeleton Table="false" Rows="5" />
+}
+else if (!packages.Any())
+{
+    <div class="card-panel text-center text-body-secondary py-4">
+        <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+        <span class="small">بستهٔ تحویل‌نشده‌ای نداری. خسته نباشی!</span>
+    </div>
+}
+else
+{
+    <div class="row g-2">
+        @foreach (var p in packages)
+        {
+            <div class="col-12">
+                <div class="card-panel py-2">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <div class="fw-bold"><code>@p.DeliveryCode</code></div>
+                            <div class="small">@p.City@if (!string.IsNullOrWhiteSpace(p.Neighborhood))
+                                {<span class="text-body-secondary"> / @p.Neighborhood</span>}</div>
+                            @if (p.ScheduledDate is not null)
+                            {
+                                <div class="small text-body-secondary">موعد: @p.ScheduledDate.Value.ToPersianDate()</div>
+                            }
+                        </div>
+                        <button class="btn btn-sm btn-outline-success text-nowrap"
+                                @onclick="@(() => PrefillAndOpen(p.DeliveryCode))">تحویل</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<PackageDeliveryDto>? packages;
+    private string? _userId;
+
+    private bool showDeliverPanel;
+    private string? nationalCode;
+    private string? deliveryCode;
+    private bool isSaving;
+    private string? resultMessage;
+    private bool resultSuccess;
+
+    private bool scanSupported;
+    private string? scanningField;
+    private ElementReference videoElement;
+    private IJSObjectReference? scanModule;
+    private DotNetObjectReference<Deliver>? selfRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (_userId is null) return;
+
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || RendererInfo.Name == "Static") return;
+
+        try
+        {
+            scanModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "/barcode-scan.js");
+            scanSupported = await scanModule.InvokeAsync<bool>("isSupported");
+            selfRef ??= DotNetObjectReference.Create(this);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (JSException)
+        {
+            // بدون دوربین/JS — ورود دستی کافی است
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_userId is null) return;
+        packages = await DistributionService.GetPendingForAssigneeAsync(_userId);
+    }
+
+    private void ToggleDeliverPanel()
+    {
+        showDeliverPanel = !showDeliverPanel;
+        resultMessage = null;
+        if (!showDeliverPanel) _ = StopScan();
+    }
+
+    private void PrefillAndOpen(string code)
+    {
+        deliveryCode = code;
+        resultMessage = null;
+        showDeliverPanel = true;
+    }
+
+    private async Task ToggleScan(string field)
+    {
+        if (scanModule is null || selfRef is null) return;
+
+        if (scanningField == field)
+        {
+            await StopScan();
+            return;
+        }
+
+        scanningField = field;
+        await InvokeAsync(StateHasChanged);
+        // صبر کوتاه تا <video> رندر شود، بعد استریم را وصل کن
+        await Task.Delay(100);
+        try
+        {
+            await scanModule.InvokeVoidAsync("startScanner", videoElement, selfRef, field);
+        }
+        catch (JSException)
+        {
+            scanningField = null;
+            ToastService.ShowError("دسترسی به دوربین ممکن نشد؛ کد را دستی وارد کنید.");
+        }
+    }
+
+    private async Task StopScan()
+    {
+        scanningField = null;
+        if (scanModule is not null)
+        {
+            try { await scanModule.InvokeVoidAsync("stopScanner"); } catch (JSException) { }
+        }
+    }
+
+    [JSInvokable]
+    public Task OnBarcodeScanned(string field, string value)
+    {
+        if (field == "national") nationalCode = value?.Trim();
+        else deliveryCode = value?.Trim();
+        scanningField = null;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SubmitDelivery()
+    {
+        if (_userId is null) return;
+
+        isSaving = true;
+        resultMessage = null;
+        try
+        {
+            var result = await DistributionService.VerifyDeliveryAsync(
+                deliveryCode ?? string.Empty, nationalCode ?? string.Empty, _userId);
+
+            (resultSuccess, resultMessage) = result.Status switch
+            {
+                packettransfer.Distribution.DTOs.DeliveryVerifyStatus.Success =>
+                    (true, $"تحویل بسته {result.Package!.DeliveryCode} ثبت شد."),
+                packettransfer.Distribution.DTOs.DeliveryVerifyStatus.NotFound =>
+                    (false, "بسته‌ای با این کد تحویل یافت نشد."),
+                packettransfer.Distribution.DTOs.DeliveryVerifyStatus.AlreadyDelivered =>
+                    (false, $"این بسته قبلاً تحویل شده است (توسط {result.DeliveredByUserName ?? "—"})."),
+                packettransfer.Distribution.DTOs.DeliveryVerifyStatus.NotAssigned =>
+                    (false, "این بسته به شما منتسب نیست؛ با ادمین هماهنگ کنید."),
+                _ => (false, "کد ملی اسکن‌شده با اطلاعات پنل یکسان نیست.")
+            };
+
+            if (result.Status == packettransfer.Distribution.DTOs.DeliveryVerifyStatus.Success)
+            {
+                nationalCode = null;
+                deliveryCode = null;
+                await LoadAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            resultSuccess = false;
+            resultMessage = packettransfer.App.Components.Shared.ErrorMessageHelper.ToUserMessage(ex);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (scanModule is not null)
+        {
+            try { await scanModule.InvokeVoidAsync("stopScanner"); } catch (JSException) { }
+            await scanModule.DisposeAsync();
+        }
+        selfRef?.Dispose();
+    }
+}

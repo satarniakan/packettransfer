@@ -31,8 +31,9 @@ dotnet ef migrations script --project packettransfer.App --startup-project packe
 --   docker compose cp docs/database.sql sqlserver:/tmp/database.sql
 --   docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Dev_Pass123!' -C -Q "CREATE DATABASE [EmptyFramework]"
 --   docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Dev_Pass123!' -C -d EmptyFramework -i /tmp/database.sql
--- نکته: نقش‌ها (Admin/User) را خودِ اپ هنگام استارتاپ می‌سازد (RoleSeeder) و
--- ادمین اول با Identity:FirstAdminPhoneNumber در اولین ورود OTP ساخته می‌شود؛
+-- نکته: نقش‌ها (Admin/User) را خودِ اپ هنگام استارتاپ می‌سازد (RoleSeeder)؛
+-- ثبت‌نام خودکار وجود ندارد (ورود فقط با نام کاربری و رمز است) و اولین ادمین
+-- باید دستی ساخته شود — tools/create-admin.sql را ببینید.
 -- پس سید اضافه لازم نیست. خودِ اپ هم با MigrateAsync همین اسکیما را می‌سازد؛
 -- این فایل برای وقتی است که بخواهید دیتابیس را بیرون از اپ بسازید/ریستور کنید.
 -- ============================================================

@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\packettransfer.Application\packettransfer.Application.csproj" />
     <ProjectReference Include="..\packettransfer.Infrastructure\packettransfer.Infrastructure.csproj" />
+    <ProjectReference Include="..\packettransfer.Distribution\packettransfer.Distribution.csproj" />
   </ItemGroup>
 
 </Project>

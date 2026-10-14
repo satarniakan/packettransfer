@@ -9,16 +9,10 @@ using packettransfer.Domain.Interfaces;
 
 namespace packettransfer.Application.Services;
 
-/// <summary>صدور و اعتبارسنجی توکن‌های API (اپ موبایل و کلاینت‌های غیرمرورگری).</summary>
+/// <summary>صدور و اعتبارسنجی توکن‌های API (کلاینت‌های غیرمرورگری).</summary>
 public interface IApiTokenService
 {
-    /// <summary>تأیید OTP و صدور توکن در یک قدم — مسیر ورود اپ موبایل.</summary>
-    Task<TokenIssueResult> VerifyOtpAndIssueTokenAsync(string phoneNumber, string code, string? deviceName);
-
-    /// <summary>
-    /// ورود با نام‌کاربری/ایمیل و رمز + صدور توکن — مسیر جایگزین وقتی سرویس پیامک قطع است.
-    /// قفل موقت حساب دقیقاً مثل ورود وب اعمال می‌شود، ولی کوکی ست نمی‌شود.
-    /// </summary>
+    /// <summary>ورود با نام‌کاربری/ایمیل و رمز + صدور توکن.</summary>
     Task<TokenIssueResult> LoginWithPasswordAndIssueTokenAsync(
         string userName, string password, string? deviceName);
 
@@ -49,7 +43,6 @@ public class ApiTokenService : IApiTokenService
     public const string TokenPrefix = "pat_";
 
     private readonly IApiTokenRepository _tokens;
-    private readonly IOtpService _otpService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IUserClaimsPrincipalFactory<ApplicationUser> _principalFactory;
@@ -61,7 +54,6 @@ public class ApiTokenService : IApiTokenService
 
     public ApiTokenService(
         IApiTokenRepository tokens,
-        IOtpService otpService,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IUserClaimsPrincipalFactory<ApplicationUser> principalFactory,
@@ -72,7 +64,6 @@ public class ApiTokenService : IApiTokenService
         TimeProvider? clock = null)
     {
         _tokens = tokens;
-        _otpService = otpService;
         _userManager = userManager;
         _signInManager = signInManager;
         _principalFactory = principalFactory;
@@ -81,20 +72,6 @@ public class ApiTokenService : IApiTokenService
         _configuration = configuration;
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
-    }
-
-    public async Task<TokenIssueResult> VerifyOtpAndIssueTokenAsync(
-        string phoneNumber, string code, string? deviceName)
-    {
-        if (!await _otpService.VerifyOtpAsync(phoneNumber, code))
-            return new TokenIssueResult(false);
-
-        var user = await _userManager.FindByNameAsync(phoneNumber);
-        if (user is null)
-            return new TokenIssueResult(false);
-
-        var issued = await IssueAsync(user.Id, deviceName);
-        return new TokenIssueResult(true, issued.Token, issued.ExpiresAtUtc, user.Id);
     }
 
     public async Task<TokenIssueResult> LoginWithPasswordAndIssueTokenAsync(

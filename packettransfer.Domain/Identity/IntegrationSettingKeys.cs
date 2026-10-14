@@ -27,10 +27,6 @@ public static class IntegrationSettingKeys
     public const string ZarinPalMerchantId = "integration:zarinpal-merchant-id";
     public const string ZarinPalSandbox = "integration:zarinpal-sandbox";
 
-    // کپچا (Turnstile) — appsettings: Captcha:Turnstile:*
-    public const string TurnstileSecretKey = "integration:turnstile-secret-key";
-    public const string TurnstileSiteKey = "integration:turnstile-sitekey";
-
     // وب‌پوش (VAPID) — appsettings: Push:Vapid:*
     public const string VapidSubject = "integration:vapid-subject";
     public const string VapidPublicKey = "integration:vapid-public-key";

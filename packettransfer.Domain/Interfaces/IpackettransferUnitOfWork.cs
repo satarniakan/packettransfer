@@ -8,7 +8,6 @@ namespace packettransfer.Domain.Interfaces;
 /// </summary>
 public interface IpackettransferUnitOfWork
 {
-    IOtpRepository OtpCodes { get; }
     IAuditLogRepository AuditLogs { get; }
     INotificationRepository Notifications { get; }
     IOutboxRepository Outbox { get; }

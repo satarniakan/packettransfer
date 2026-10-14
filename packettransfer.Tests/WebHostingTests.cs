@@ -125,7 +125,6 @@ public class WebHostingTests : IAsyncLifetime
         using var scope = _app!.Services.CreateScope();
 
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAuthService>());
-        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOtpService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IpackettransferUnitOfWork>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISmsSender>());
     }

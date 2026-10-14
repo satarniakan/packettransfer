@@ -21,10 +21,10 @@
 </div>
 <div class="card-panel mb-3">
     <div class="d-flex gap-2">
-        <input class="form-control form-control-sm" placeholder="جست‌وجو: شماره، نام یا ایمیل…"
+        <input class="form-control form-control-sm" placeholder="جست‌وجو: نام کاربری، شماره، نام یا ایمیل…"
                @bind="search" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
         <button class="btn btn-sm btn-outline-secondary" @onclick="SearchAsync">جست‌وجو</button>
-        <label class="btn btn-sm btn-outline-secondary mb-0" title="ستون‌ها: شماره موبایل، نام، ایمیل (اختیاری)، رمز (اختیاری)">
+        <label class="btn btn-sm btn-outline-secondary mb-0" title="ستون‌ها: نام کاربری، نام، رمز (الزامی)، شماره موبایل و ایمیل (اختیاری)">
             <i class="bi bi-file-earmark-excel me-1"></i>ایمپورت از اکسل
             <InputFile accept=".xlsx" OnChange="ImportAsync" style="display:none;" />
         </label>
@@ -67,8 +67,9 @@
         <table class="table mb-0">
             <thead>
                 <tr>
-                    <th>شماره موبایل</th>
+                    <th>نام کاربری</th>
                     <th>نام کامل</th>
+                    <th>شماره موبایل</th>
                     <th>ایمیل</th>
                     <th>نقش فعلی</th>
                     <th></th>
@@ -78,8 +79,9 @@
                 @foreach (var u in page.Items)
                 {
                     <tr>
-                        <td>@u.PhoneNumber</td>
+                        <td>@u.UserName</td>
                         <td>@u.FullName</td>
+                        <td>@u.PhoneNumber</td>
                         <td>@u.Email</td>
                         <td>
                             @if (u.Roles.Any())
@@ -204,7 +206,7 @@
     {
         var confirmed = await confirmDialog.ShowAsync(
             "حذف کاربر",
-            $"کاربر «{(string.IsNullOrWhiteSpace(user.FullName) ? user.PhoneNumber : user.FullName)}» برای همیشه حذف شود؟ این عملیات بازگشت‌پذیر نیست.");
+            $"کاربر «{(string.IsNullOrWhiteSpace(user.FullName) ? user.UserName : user.FullName)}» برای همیشه حذف شود؟ این عملیات بازگشت‌پذیر نیست.");
         if (!confirmed) return;
 
         var result = await UserAdminService.DeleteUserAsync(user.UserId, currentUserId ?? string.Empty);

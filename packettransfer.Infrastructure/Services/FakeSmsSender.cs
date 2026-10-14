@@ -5,8 +5,8 @@ namespace packettransfer.Infrastructure.Services;
 
 /// <summary>
 /// جایگزین موقت سرویس پیامک تا وقتی ارائه‌دهنده‌ی واقعی وصل نشده است.
-/// متن پیام شامل کد OTP است؛ پس فقط در Development داخل لاگ نوشته می‌شود
-/// (لاگ Production روی دیسک می‌ماند و هر کسی به آن دسترسی داشته باشد می‌تواند وارد شود).
+/// متن پیام ممکن است محتوای حساس (مثل اطلاع‌رسانی) داشته باشد؛ پس فقط در
+/// Development داخل لاگ نوشته می‌شود.
 /// </summary>
 public class FakeSmsSender : ISmsSender
 {

@@ -24,7 +24,6 @@ public interface ISettingCatalog
 public static class FrameworkSettingKeys
 {
     public const string SiteName = "site:name";
-    public const string OtpSmsTemplate = "sms:otp-template";
 }
 
 /// <summary>مقادیر پیش‌فرض تنظیمات پایه — وقتی ردیفی در دیتابیس نیست، این‌ها برمی‌گردند.</summary>
@@ -33,7 +32,6 @@ public static class SettingDefaults
     public static string Get(string key) => key switch
     {
         FrameworkSettingKeys.SiteName => "سامانه",
-        FrameworkSettingKeys.OtpSmsTemplate => "کد ورود شما: {Code}",
         _ => string.Empty
     };
 }

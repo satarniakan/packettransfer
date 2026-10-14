@@ -115,8 +115,6 @@ public static class DependencyInjection
 
         services.AddScoped<IpackettransferUnitOfWork, packettransferUnitOfWork>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
-        services.AddScoped<IOtpRepository, OtpCodeRepository>();
-        services.AddScoped<IOtpThrottleRepository, OtpThrottleRepository>();
         services.AddScoped<IApiTokenRepository, ApiTokenRepository>();
         services.AddScoped<ILoginHistoryRepository, LoginHistoryRepository>();
         services.AddScoped<ISettingRepository, SettingRepository>();
@@ -158,26 +156,9 @@ public static class DependencyInjection
                 sp.GetRequiredService<ILogger<FakePaymentGateway>>(), logDetails: isDevelopment);
         });
 
-        // کپچا: بر اساس «Captcha:Provider» — Turnstile واقعی، وگرنه غیرفعال.
-        // غیرفعال یعنی endpointها بدون کپچا کار می‌کنند (توسعه)؛ در Production حتماً Turnstile بگذارید.
-        services.AddScoped<ICaptchaValidator>(sp =>
-        {
-            if (string.Equals(configuration["Captcha:Provider"], "Turnstile", StringComparison.OrdinalIgnoreCase))
-            {
-                var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient("turnstile");
-                return new TurnstileCaptchaValidator(
-                    http,
-                    sp.GetRequiredService<ISettingService>(),
-                    sp.GetRequiredService<IConfiguration>(),
-                    sp.GetRequiredService<ILogger<TurnstileCaptchaValidator>>());
-            }
-
-            var fake = string.Equals(configuration["Captcha:Provider"], "Fake", StringComparison.OrdinalIgnoreCase);
-            return new PermissiveCaptchaValidator(
-                sp.GetRequiredService<ILogger<PermissiveCaptchaValidator>>(),
-                name: fake ? "fake" : "none",
-                logTokens: fake && isDevelopment);
-        });        services.AddScoped<ISmsSender>(sp =>
+        // پیامک: بر اساس «Sms:Provider» — Kavenegar واقعی یا Fake.
+        // FakeSmsSender فقط در Development متن پیامک را لاگ می‌کند.
+        services.AddScoped<ISmsSender>(sp =>
         {
             if (string.Equals(configuration["Sms:Provider"], "Kavenegar", StringComparison.OrdinalIgnoreCase))
             {

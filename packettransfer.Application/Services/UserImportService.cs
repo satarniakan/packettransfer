@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using packettransfer.Application.DTOs;
 using packettransfer.Application.Imports;
@@ -12,12 +11,13 @@ public record UserImportResult(int ImportedCount, List<ImportRowError> RowErrors
 
 /// <summary>
 /// ایمپورت گروهی کاربران از اکسل (فهرست پرسنل و…). ستون‌ها:
-/// شماره موبایل (Phone/PhoneNumber/موبایل/شماره موبایل/شماره — الزامی)،
-/// نام (FullName/نام/نام کامل — الزامی)، ایمیل (Email/ایمیل — اختیاری)،
-/// رمز (Password/رمز — اختیاری؛ خالی یعنی ورود فقط با پیامک).
+/// نام کاربری (UserName/نام کاربری/username — الزامی، یکتا)،
+/// نام (FullName/نام/نام کامل — الزامی)، رمز (Password/رمز — الزامی)،
+/// شماره موبایل (Phone/PhoneNumber/موبایل/شماره موبایل/شماره — اختیاری، فقط اطلاعاتی)،
+/// ایمیل (Email/ایمیل — اختیاری).
 /// <para>
-/// هر سطر خراب فقط خودش را می‌سوزاند. شماره‌ها نرمال (ارقام انگلیسی) و تکراری‌های
-/// داخل فایل در همان‌جا رد می‌شوند. نقش همهٔ واردشده‌ها «کاربر» است.
+/// هر سطر خراب فقط خودش را می‌سوزاند. نام‌های کاربری تکراریِ داخل فایل در همان‌جا
+/// رد می‌شوند. نقش همهٔ واردشده‌ها «کاربر» است.
 /// </para>
 /// </summary>
 public interface IUserImportService
@@ -41,23 +41,23 @@ public partial class UserImportService : IUserImportService
     public async Task<UserImportResult> ImportAsync(Stream excelStream)
     {
         var parsed = ExcelImporter.Read(excelStream, row => new ImportedUserRow(
-            PersianSearch.NormalizePhone(ExcelImporter.Required(row,
-                "Phone", "PhoneNumber", "موبایل", "شماره موبایل", "شماره")),
+            ExcelImporter.Required(row, "UserName", "نام کاربری", "username").Trim(),
             ExcelImporter.Required(row, "FullName", "نام", "نام کامل").Trim(),
-            ExcelImporter.Get(row, "Email", "ایمیل")?.Trim(),
-            ExcelImporter.Get(row, "Password", "رمز")?.Trim()));
+            ExcelImporter.Required(row, "Password", "رمز").Trim(),
+            ExcelImporter.Get(row, "Phone", "PhoneNumber", "موبایل", "شماره موبایل", "شماره")?.Trim(),
+            ExcelImporter.Get(row, "Email", "ایمیل")?.Trim()));
 
         var errors = new List<ImportRowError>(parsed.RowErrors);
-        var seenPhones = new HashSet<string>(StringComparer.Ordinal);
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var imported = 0;
 
         foreach (var item in parsed.Items)
         {
             var (rowNumber, row) = (item.RowNumber, item.Value);
 
-            if (!PhonePattern().IsMatch(row.Phone))
+            if (row.UserName.Length < 3 || row.UserName.Any(char.IsWhiteSpace))
             {
-                errors.Add(new ImportRowError(rowNumber, "Phone", $"شمارهٔ «{row.Phone}» معتبر نیست."));
+                errors.Add(new ImportRowError(rowNumber, "UserName", $"نام کاربری «{row.UserName}» معتبر نیست (حداقل ۳ کاراکتر بدون فاصله)."));
                 continue;
             }
 
@@ -67,18 +67,31 @@ public partial class UserImportService : IUserImportService
                 continue;
             }
 
-            if (!seenPhones.Add(row.Phone))
+            if (string.IsNullOrWhiteSpace(row.Password))
             {
-                errors.Add(new ImportRowError(rowNumber, "Phone", $"شمارهٔ «{row.Phone}» در فایل تکراری است."));
+                errors.Add(new ImportRowError(rowNumber, "Password", "رمز الزامی است."));
+                continue;
+            }
+
+            string? phone = null;
+            if (!string.IsNullOrWhiteSpace(row.Phone))
+            {
+                phone = PersianSearch.NormalizePhone(row.Phone);
+            }
+
+            if (!seenNames.Add(row.UserName))
+            {
+                errors.Add(new ImportRowError(rowNumber, "UserName", $"نام کاربری «{row.UserName}» در فایل تکراری است."));
                 continue;
             }
 
             var result = await _users.CreateUserAsync(new CreateUserDto
             {
+                UserName = row.UserName,
                 FullName = row.FullName,
-                PhoneNumber = row.Phone,
+                PhoneNumber = phone,
                 Email = string.IsNullOrWhiteSpace(row.Email) ? null : row.Email,
-                Password = string.IsNullOrWhiteSpace(row.Password) ? null : row.Password,
+                Password = row.Password,
                 RoleNames = [Roles.User]
             });
 
@@ -88,7 +101,7 @@ public partial class UserImportService : IUserImportService
             }
             else
             {
-                errors.Add(new ImportRowError(rowNumber, "Phone",
+                errors.Add(new ImportRowError(rowNumber, "UserName",
                     string.Join("، ", result.Errors.Select(e => e.Description))));
             }
         }
@@ -105,8 +118,6 @@ public partial class UserImportService : IUserImportService
         return new UserImportResult(imported, errors, parsed.TotalRows);
     }
 
-    private sealed record ImportedUserRow(string Phone, string FullName, string? Email, string? Password);
-
-    [GeneratedRegex("^09\\d{9}$")]
-    private static partial Regex PhonePattern();
+    private sealed record ImportedUserRow(
+        string UserName, string FullName, string Password, string? Phone, string? Email);
 }

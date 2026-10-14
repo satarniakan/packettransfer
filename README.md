@@ -1,8 +1,8 @@
 # packettransfer Framework — فریم‌ورک خالی فارسی راست‌چین (Blazor Server)
 
-این ریپو پایهٔ آمادهٔ پروژه‌هاست: هویت و ورود (OTP + رمز)،
+این ریپو پایهٔ آمادهٔ پروژه‌هاست: هویت و ورود با نام کاربری و رمز،
 مدیریت کاربران و نقش‌ها، مجوزها، منوی داده‌محور، لاگ رویدادها، اعلان‌ها (کارتابل + وب‌پوش)،
-صف پیام (Outbox)، توکن API موبایل، پرداخت، تنظیمات قابل‌ویرایش،
+صف پیام (Outbox)، توکن API، پرداخت، تنظیمات قابل‌ویرایش،
 ابزارهای فارسی‌سازی و خروجی/ورودی اکسل و PDF.
 
 ## پیش‌نیازها
@@ -74,11 +74,11 @@ dotnet test MyProject/MyProject.Tests/MyProject.Tests.csproj
 مرورگر را روی همان آدرسی که در ترمینال چاپ شد باز کنید
 (با `dotnet run --project packettransfer.App` که در گام ۳ اجرا کردید).
 
-جدول‌های پایه (کاربران، نقش‌ها، OTP، اعلان‌ها، لاگ‌ها، Outbox) با `MigrateAsync`
+جدول‌های پایه (کاربران، نقش‌ها، اعلان‌ها، لاگ‌ها، Outbox) با `MigrateAsync`
 هنگام startup خودکار ساخته می‌شوند. مرورگر را روی همان آدرسی که در ترمینال چاپ شد
-باز کنید. برای اینکه خودتان ادمین شوید، قبلاً `Identity:FirstAdminPhoneNumber` را
-روی شمارهٔ خودتان گذاشته باشید؛ آن شماره با اولین ورودِ OTP نقش «ادمین» می‌گیرد
-و همهٔ کاربران تازه نقش «کاربر» می‌گیرند.
+باز کنید. ثبت‌نام خودکار وجود ندارد: اولین ادمین را با `tools/create-admin.sql`
+بسازید (روی دیتابیس خالی)، وارد شوید و بقیهٔ کاربران را از صفحهٔ «مدیریت کاربران»
+با نام کاربری و رمز بسازید.
 
 ## گام ۶ — نسخهٔ خودتان را در گیت ثبت کنید
 
@@ -124,8 +124,10 @@ dotnet ef migrations add <Name> --project packettransfer.App --startup-project p
 | `/` | خانه | همهٔ کاربران واردشده |
 | `/notifications` | آرشیو اعلان‌ها + فعال‌سازی وب‌پوش | همهٔ کاربران واردشده |
 | `/sessions` | نشست‌های فعال (توکن‌ها) و ورودهای اخیر | همهٔ کاربران واردشده |
-| `/profile` | پروفایل و تعیین رمز | همهٔ کاربران واردشده |
-| `/admin/users` | مدیریت افراد: درج، ویرایش، حذف و نقش‌ها | ادمین |
+| `/profile` | پروفایل و تغییر رمز | همهٔ کاربران واردشده |
+| `/admin/users` | مدیریت افراد: درج، ویرایش، بازنشانی رمز و نقش‌ها | ادمین |
+| `/admin/distribution` | داشبورد توزیع: ایمپورت اکسل + گزارش وضعیت + انتساب مجدد | `distribution.manage` |
+| `/deliver` | اپ توزیع‌کننده (PWA): بسته‌های من + ثبت تحویل با اسکن بارکد | `distribution.deliver` |
 | `/admin/settings` | تنظیمات سامانه و قالب پیام‌ها | ادمین |
 | `/payment-result` | نتیجهٔ برگشت از درگاه | همگانی |
 
@@ -157,10 +159,10 @@ dotnet new install .
 
 | مسیر | نقش |
 |---|---|
-| `packettransfer.Domain` | هویت (`ApplicationUser`)، مجوز (`Permissions` فقط `ClaimType` دارد)، نقش‌های پایه + `IPermissionCatalog`، قراردادهای زیرساخت (`IFileStorage`، `ISmsSender`، `IEmailSender`، `IPaymentGateway`، `ICaptchaValidator`)، انتیتی‌های پایه (AuditLog، OtpCode، OtpThrottle، OutboxMessage، Notification، Setting، Payment، ApiToken، LoginHistory، PushSubscription)، `IpackettransferUnitOfWork`، جست‌وجوی فارسی (`PersianSearch`) |
-| `packettransfer.Application` | سرویس‌های پایه (Auth، Otp، Audit، Permission، UserAdmin، Notification، Outbox، ApiToken، LoginHistory، Setting، NumberSeries، Payment، Push، Impersonation) + Helpers فارسی + Exports اکسل/PDF + ایمپورت اکسل + ترجمهٔ یکتای خطا (`ExceptionTranslator`) + کارهای تکرارشونده (`IRecurringJob`) |
-| `packettransfer.Infrastructure` | `packettransferDbContext` (ماژولار با `IpackettransferModule`) + `packettransferUnitOfWork` (تراکنش واقعی)، `RoleSeeder`، فرستنده‌های پیامک/ایمیل، درگاه زرین‌پال، Turnstile، وب‌پوش VAPID — بدون هیچ مایگریشن (مال میزبان است) |
-| `packettransfer.App` | **تنها پروژهٔ اجرایی و تنها پروژهٔ وب (startup)** — همهٔ لایهٔ وب اینجاست: صفحات ورود/OTP/پروفایل/خانه/نشست‌ها/ادمین/تنظیمات/نتیجهٔ پرداخت، `MainLayout` (بنر جانشینی)، `NavMenu` داده‌محور (`INavProvider`)، `Routes`، کامپوننت‌های `Shared/App*` + دکمهٔ وب‌پوش + زیرساخت اجرا (`packettransferSetup`، endpointها، سرویس‌های پس‌زمینه)؛ مایگریشن‌ها (`Migrations/`) و فکتوری design-time هم اینجاست |
+| `packettransfer.Domain` | هویت (`ApplicationUser`)، مجوز (`Permissions` فقط `ClaimType` دارد)، نقش‌های پایه + `IPermissionCatalog`، قراردادهای زیرساخت (`IFileStorage`، `ISmsSender`، `IEmailSender`، `IPaymentGateway`)، انتیتی‌های پایه (AuditLog، OutboxMessage، Notification، Setting، Payment، ApiToken، LoginHistory، PushSubscription)، `IpackettransferUnitOfWork`، جست‌وجوی فارسی (`PersianSearch`) |
+| `packettransfer.Application` | سرویس‌های پایه (Auth، Audit، Permission، UserAdmin، Notification، Outbox، ApiToken، LoginHistory، Setting، NumberSeries، Payment، Push، Impersonation) + Helpers فارسی + Exports اکسل/PDF + ایمپورت اکسل + ترجمهٔ یکتای خطا (`ExceptionTranslator`) + کارهای تکرارشونده (`IRecurringJob`) |
+| `packettransfer.Infrastructure` | `packettransferDbContext` (ماژولار با `IpackettransferModule`) + `packettransferUnitOfWork` (تراکنش واقعی)، `RoleSeeder`، فرستنده‌های پیامک/ایمیل، درگاه زرین‌پال، وب‌پوش VAPID — بدون هیچ مایگریشن (مال میزبان است) |
+| `packettransfer.App` | **تنها پروژهٔ اجرایی و تنها پروژهٔ وب (startup)** — همهٔ لایهٔ وب اینجاست: صفحات ورود/پروفایل/خانه/نشست‌ها/ادمین/تنظیمات/نتیجهٔ پرداخت، `MainLayout` (بنر جانشینی)، `NavMenu` داده‌محور (`INavProvider`)، `Routes`، کامپوننت‌های `Shared/App*` + دکمهٔ وب‌پوش + زیرساخت اجرا (`packettransferSetup`، endpointها، سرویس‌های پس‌زمینه)؛ مایگریشن‌ها (`Migrations/`) و فکتوری design-time هم اینجاست |
 
 ## خطاهای پرتکرار
 
@@ -322,9 +324,8 @@ updates:
 docker compose up --build
 ```
 
-مرورگر: `http://localhost:8080`. رمز dev دیتابیس و بقیه مقادیر داخل `docker-compose.yml`
-هست؛ `Identity:FirstAdminPhoneNumber` را همان‌جا با شمارهٔ خودتان پر کنید تا با اولین
-ورود ادمین شوید.
+مرورگر: `http://localhost:8080`. رمز dev دیتابیس داخل `docker-compose.yml`
+هست. اولین ادمین را با `tools/create-admin.sql` بسازید و وارد شوید.
 
 ### استقرار production
 
@@ -348,12 +349,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 | بخش | کلیدها | توضیح |
 |---|---|---|
-| `Sms` | `Provider`: `Fake`/`Kavenegar` | پیامک نمایشی (لاگ) یا واقعی |
+| `Sms` | `Provider`: `Fake`/`Kavenegar` | پیامک نمایشی (لاگ) یا واقعی — برای اعلان‌های Outbox |
 | `Email:Smtp` | `Host`، `Port`، … | `Host` خالی یعنی ارسال با خطا در Outbox ثبت می‌شود |
 | `Payment` | `Provider`: `Fake`/`ZarinPal` | شروع: `POST /api/v1/payments`؛ برگشت: `/payments/callback` |
-| `Captcha` | `Provider`: `Turnstile`/`Fake`/خالی | کپچای مسیر درخواست OTP؛ ویجت لاگین خودکار می‌آید |
 | `Push:Vapid` | `Subject`، `PublicKey`، `PrivateKey` | وب‌پوش؛ ساخت کلید: `npx web-push generate-vapid-keys` |
-| `ApiTokens` | `LifetimeDays` (پیش‌فرض ۱۸۰) | عمر توکن موبایل؛ ورود موبایل با OTP (`POST /api/v1/auth/otp/verify`) یا با رمز (`POST /api/v1/auth/login` — مسیر جایگزین وقتی پیامک قطع است) |
+| `ApiTokens` | `LifetimeDays` (پیش‌فرض ۱۸۰) | عمر توکن API؛ ورود با نام کاربری/رمز (`POST /api/v1/auth/login`) |
 | `Support` | `ImpersonationEnabled` | جانشینی ادمین (پیش‌فرض خاموش) |
 | `Storage` | `RootPath`، `MaxFileSizeBytes`، `AllowedExtensions` | فایل‌استوریج محلی |
 
@@ -363,12 +363,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 `IRecurringJob` (کار دوره‌ای)، `INumberSeries` (شمارهٔ سند)،
 `ExcelImporter` (ایمپورت با خطای سطری)، `IPaymentGateway` (درگاه جدید).
 
-مستندات خودکار API موبایل فقط در Development است: `/openapi/v1.json`.
+مستندات خودکار API فقط در Development است: `/openapi/v1.json`.
 
 ## قراردادها
 
 - همهٔ متون فارسی، سمت راست‌به‌چپ؛ تاریخ شمسی و اعداد فارسی در UI.
 - لاگ با Serilog (کنسول + فایل روزانه، نگهداری ۱۴ روز).
-- محدودیت نرخ روی endpointهای auth (`login`، `otp-request`، `otp-verify`، `profile`).
-- endpointهای کوکیِ POST (ورود، OTP، خروج، جانشینی) antiforgery را اعتبارسنجی می‌کنند؛ endpointهای توکن موبایل نه (توکن هدر، کوکی نیست).
+- محدودیت نرخ روی endpointهای auth (`login`، `profile`).
+- endpointهای کوکیِ POST (ورود، خروج، جانشینی) antiforgery را اعتبارسنجی می‌کنند؛ endpointهای توکن API نه (توکن هدر، کوکی نیست).
 - صفحه‌ها تک‌فرم نگه داشته شوند تا DbContext اسکوپ‌دار مدارها به هم نریزد.

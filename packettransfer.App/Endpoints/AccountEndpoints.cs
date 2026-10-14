@@ -4,79 +4,38 @@ using Microsoft.AspNetCore.Antiforgery;
 using packettransfer.Application.DTOs;
 using packettransfer.Application.Services;
 using Microsoft.AspNetCore.Mvc;
-using packettransfer.Domain.Interfaces;
 
 namespace packettransfer.App.Endpoints;
 
 /// <summary>
 /// Endpointهای احراز هویت. هر کدام فقط IAuthService را صدا می‌زنند، بدون منطق تجاری.
 /// (این‌ها Razor Page نیستند چون باید کوکی ست کنند و این کار داخل Blazor Circuit ممکن نیست.)
+/// ورود فقط با نام کاربری/ایمیل و رمز عبور است.
 /// </summary>
 public static class AccountEndpoints
 {
     public static IEndpointRouteBuilder MapAccountEndpoints(this IEndpointRouteBuilder app)
     {
+        // سازگاری با نشانی قدیمی ورود رمزی
+        app.MapGet("/login-password", () => Results.Redirect("/login"));
+
         app.MapPost("/Account/Login", async (
             IAuthService authService,
-            [FromForm] string email,
+            [FromForm] string username,
             [FromForm] string password) =>
         {
-            var result = await authService.LoginWithPasswordAsync(email, password);
+            var result = await authService.LoginWithPasswordAsync(username, password);
 
             return result.Succeeded
                 ? Results.Redirect("/")
-                : Results.Redirect("/login-password?error=1");
+                : Results.Redirect("/login?error=1");
         }).WithMetadata(new RequireAntiforgeryTokenAttribute()).RequireRateLimiting("login");
-
-        app.MapPost("/Account/RequestOtp", async (
-            HttpContext httpContext,
-            IAuthService authService,
-            ICaptchaValidator captcha,
-            [FromForm] string phoneNumber,
-            [FromForm(Name = "cf-turnstile-response")] string? captchaToken) =>
-        {
-            try
-            {
-                if (!await captcha.ValidateAsync(captchaToken,
-                        httpContext.Connection.RemoteIpAddress?.ToString()))
-                {
-                    return Results.Redirect("/login?error=captcha");
-                }
-
-                await authService.RequestOtpAsync(phoneNumber);
-                return Results.Redirect($"/verify-otp?phone={Uri.EscapeDataString(phoneNumber)}");
-            }
-            catch (packettransfer.Domain.Exceptions.BusinessRuleException ex)
-            {
-                // مثلاً شماره به‌خاطر تلاش‌های ناموفقِ زیاد موقتاً قفل شده است
-                return Results.Redirect($"/login?error={Uri.EscapeDataString(ex.Message)}");
-            }
-        }).WithMetadata(new RequireAntiforgeryTokenAttribute()).RequireRateLimiting("otp-request");
-
-        app.MapPost("/Account/VerifyOtp", async (
-            IAuthService authService,
-            [FromForm] string phoneNumber,
-            [FromForm] string code) =>
-        {
-            var result = await authService.VerifyOtpAsync(phoneNumber, code);
-
-            if (!result.Succeeded)
-            {
-                return Results.Redirect($"/verify-otp?phone={Uri.EscapeDataString(phoneNumber)}&error=1");
-            }
-
-            return result.IsNewUser
-                ? Results.Redirect("/profile?welcome=true")
-                : Results.Redirect("/");
-        }).WithMetadata(new RequireAntiforgeryTokenAttribute()).RequireRateLimiting("otp-verify");
 
         app.MapPost("/Account/UpdateProfile", async (
             HttpContext httpContext,
             IAuthService authService,
             [FromForm] string? fullName,
-            [FromForm] string? email,
-            [FromForm] string? password,
-            [FromForm] string? confirmPassword) =>
+            [FromForm] string? email) =>
         {
             var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId is null)
@@ -84,8 +43,7 @@ public static class AccountEndpoints
                 return Results.Redirect("/login");
             }
 
-            var result = await authService.UpdateProfileAsync(
-                userId, fullName, email, password, confirmPassword);
+            var result = await authService.UpdateProfileAsync(userId, fullName, email);
 
             return result.Status switch
             {
@@ -95,55 +53,29 @@ public static class AccountEndpoints
             };
         }).WithMetadata(new RequireAntiforgeryTokenAttribute()).RequireRateLimiting("profile");
 
-        // مرحلهٔ ۱ «فراموشی/تعیین رمز موبایل»: کد پیامکی می‌فرستد و به صفحهٔ تعیین رمز می‌رود.
-        app.MapPost("/Account/RequestPasswordReset", async (
+        app.MapPost("/Account/ChangePassword", async (
             HttpContext httpContext,
             IAuthService authService,
-            ICaptchaValidator captcha,
-            [FromForm] string phoneNumber,
-            [FromForm(Name = "cf-turnstile-response")] string? captchaToken) =>
-        {
-            try
-            {
-                if (!await captcha.ValidateAsync(captchaToken,
-                        httpContext.Connection.RemoteIpAddress?.ToString()))
-                {
-                    return Results.Redirect("/reset-password?error=captcha");
-                }
-
-                await authService.RequestOtpAsync(phoneNumber);
-                return Results.Redirect($"/reset-password?phone={Uri.EscapeDataString(phoneNumber)}");
-            }
-            catch (packettransfer.Domain.Exceptions.BusinessRuleException ex)
-            {
-                return Results.Redirect($"/reset-password?error={Uri.EscapeDataString(ex.Message)}");
-            }
-        }).WithMetadata(new RequireAntiforgeryTokenAttribute()).RequireRateLimiting("otp-request");
-
-        // مرحلهٔ ۲: کد + رمز جدید را می‌گیرد و رمز را تعیین می‌کند (سرویس، کد را می‌سوزاند).
-        app.MapPost("/Account/ResetPassword", async (
-            IAuthService authService,
-            [FromForm] string phoneNumber,
-            [FromForm] string code,
+            [FromForm] string currentPassword,
             [FromForm] string newPassword,
-            [FromForm] string confirmPassword) =>
+            [FromForm] string? confirmPassword) =>
         {
-            var result = await authService.ResetPasswordWithOtpAsync(
-                phoneNumber, code, newPassword, confirmPassword);
+            var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null)
+            {
+                return Results.Redirect("/login");
+            }
+
+            var result = await authService.ChangePasswordAsync(
+                userId, currentPassword, newPassword, confirmPassword);
 
             return result.Status switch
             {
-                PasswordResetStatus.Success => Results.Redirect("/login-password?reset=success"),
-                PasswordResetStatus.InvalidOtp =>
-                    Results.Redirect($"/reset-password?phone={Uri.EscapeDataString(phoneNumber)}&error=otp"),
-                PasswordResetStatus.UserNotFound =>
-                    Results.Redirect($"/reset-password?phone={Uri.EscapeDataString(phoneNumber)}&error=user"),
-                PasswordResetStatus.PasswordMismatch =>
-                    Results.Redirect($"/reset-password?phone={Uri.EscapeDataString(phoneNumber)}&error=mismatch"),
-                _ =>
-                    Results.Redirect($"/reset-password?phone={Uri.EscapeDataString(phoneNumber)}&error=failed")
+                ChangePasswordStatus.Success => Results.Redirect("/profile?password=success"),
+                ChangePasswordStatus.UserNotFound => Results.Redirect("/login"),
+                _ => Results.Redirect($"/profile?passworderror={result.Status}")
             };
-        }).WithMetadata(new RequireAntiforgeryTokenAttribute()).RequireRateLimiting("otp-verify");
+        }).WithMetadata(new RequireAntiforgeryTokenAttribute()).RequireRateLimiting("profile");
 
         app.MapPost("/logout", async (IAuthService authService) =>
         {

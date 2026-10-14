@@ -62,7 +62,6 @@ public class ServiceRegistrationTests
         var sp = scope.ServiceProvider;
 
         Assert.NotNull(sp.GetRequiredService<IAuthService>());
-        Assert.NotNull(sp.GetRequiredService<IOtpService>());
         Assert.NotNull(sp.GetRequiredService<IpackettransferUnitOfWork>());
         Assert.NotNull(sp.GetRequiredService<IAuditService>());
         Assert.NotNull(sp.GetRequiredService<IPermissionService>());

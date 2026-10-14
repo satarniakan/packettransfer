@@ -1,13 +1,14 @@
 // packettransfer.App/Program.cs
-// میزبان خالی: پایه را بدون هیچ دامنه‌ای بالا می‌آورد. دامنهٔ خودتان را با
-// IpackettransferModule / IPermissionCatalog / INavProvider وصل کنید.
+// میزبان: پایه + ماژول توزیع بسته (داشبورد ادمین + اپ توزیع‌کننده).
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 using packettransfer.Infrastructure;
 using packettransfer.Infrastructure.Data;
 using packettransfer.App;
+using packettransfer.App.Endpoints;
 using packettransfer.App.Middleware;
+using packettransfer.Distribution;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -42,6 +43,7 @@ builder.Services.AddDataProtection()
 builder.Services.Addpackettransfer(builder.Configuration, builder.Environment.IsDevelopment(),
     migrationsAssembly: typeof(Program).Assembly.GetName().Name);
 builder.Services.AddAppWeb();
+builder.Services.AddDistribution();
 
 // سیاست‌های دسترسی خودکارند: PermissionPolicyProvider پایه هر کلید IPermissionCatalog
 // را به policy تبدیل می‌کند، پس ثبت دستی لازم نیست.
@@ -88,8 +90,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// مجوزها و نقش‌های پایه
-await app.Services.InitializepackettransferAsync();
+// مجوزها و نقش‌های پایه + نقش توزیع‌کنندهٔ ماژول توزیع
+await app.Services.InitializepackettransferAsync(["Distributor"]);
 app.UseSerilogRequestLogging();
 
 app.UseRequestLocalization(packettransferSetup.PersianLocalization());
@@ -113,6 +115,7 @@ app.UseRateLimiter();
 
 // endpointهای پایه (احراز هویت و اعلان‌ها). endpoint دامنه بعد از این می‌آید.
 app.Mappackettransfer();
+app.MapDistributionApi();
 app.MapHealthChecks("/health");
 
 // مستندات خودکار API موبایل — فقط در Development (شامل کلید عمومی پوش و مسیرهای auth).

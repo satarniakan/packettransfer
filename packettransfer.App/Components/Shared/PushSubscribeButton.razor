@@ -51,7 +51,7 @@
             await using (module)
             {
                 var result = await module.InvokeAsync<PushSubscribeResult>("subscribePush",
-                    "/push-sw.js", publicKey, "/api/v1/push/subscriptions");
+                    "/sw.js", publicKey, "/api/v1/push/subscriptions");
 
                 if (result?.Ok == true)
                 {

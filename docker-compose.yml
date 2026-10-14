@@ -28,8 +28,6 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Default: "Server=sqlserver;Database=packettransferDev;User Id=sa;Password=Dev_Pass123!;TrustServerCertificate=True"
-      # شمارهٔ شما برای ادمین اول (همان Identity:FirstAdminPhoneNumber):
-      Identity__FirstAdminPhoneNumber: ""
     ports:
       - "8080:8080"
     depends_on:

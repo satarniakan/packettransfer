@@ -2,35 +2,32 @@ namespace packettransfer.Application.DTOs;
 
 public record PasswordLoginResult(bool Succeeded);
 
-public record OtpVerificationResult(bool Succeeded, bool IsNewUser);
-
 public enum ProfileUpdateStatus
 {
     Success,
     UserNotFound,
     FullNameTooLong,
     EmailAlreadyExists,
-    EmailUpdateFailed,
-    PasswordAlreadySet,
-    PasswordMismatch,
-    PasswordUpdateFailed,
-
-    /// <summary>نشست جانشین (ادمینِ به‌جای کاربر) حق تعیین رمز ندارد.</summary>
-    ImpersonationBlocked
+    EmailUpdateFailed
 }
 
 public record ProfileUpdateResult(ProfileUpdateStatus Status);
 
-public enum PasswordResetStatus
+public enum ChangePasswordStatus
 {
     Success,
-    InvalidOtp,
     UserNotFound,
+
+    /// <summary>رمز فعلی اشتباه وارد شده است.</summary>
+    WrongCurrentPassword,
     PasswordMismatch,
-    ResetFailed
+    ChangeFailed,
+
+    /// <summary>نشست جانشین (ادمینِ به‌جای کاربر) حق تغییر رمز ندارد.</summary>
+    ImpersonationBlocked
 }
 
-public record PasswordResetResult(PasswordResetStatus Status, string? UserId = null);
+public record ChangePasswordResult(ChangePasswordStatus Status);
 
 /// <summary>
 /// پروفایل پایهٔ کاربر. عمداً فقط شماره، ایمیل، نام و وضعیت رمز است؛ هر فیلد دامنه‌ای

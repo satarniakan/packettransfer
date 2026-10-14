@@ -1,7 +1,7 @@
 {
-  "name": "سامانه",
-  "short_name": "سامانه",
-  "description": "برنامهٔ وب فارسی راست‌به‌چپ",
+  "name": "سامانه توزیع بسته",
+  "short_name": "توزیع بسته",
+  "description": "داشبورد و اپ توزیع بسته — فارسی راست‌به‌چپ",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -13,5 +13,21 @@
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "تحویل جدید",
+      "short_name": "تحویل",
+      "description": "ثبت تحویل بسته با اسکن بارکد",
+      "url": "/deliver",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "داشبورد توزیع",
+      "short_name": "داشبورد",
+      "description": "گزارش و ایمپورت توزیع بسته",
+      "url": "/admin/distribution",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }

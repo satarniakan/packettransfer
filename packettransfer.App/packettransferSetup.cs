@@ -61,34 +61,10 @@ public static class packettransferSetup
         services.AddScoped<ToastService>();
         services.AddHostedService<OutboxProcessor>();
         services.AddHostedService<RecurringJobRunner>();
-        services.AddSingleton<IRecurringJob, OtpCleanupJob>();
 
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-            // درخواست‌های کد پیامکی: حداکثر ۳ در هر ۵ دقیقه از هر IP.
-            // (سقف دقیق‌ترِ «به‌ازای هر شماره» در خود OtpService است، چون HTTP فقط IP را می‌بیند.)
-            options.AddPolicy("otp-request", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 3,
-                        Window = TimeSpan.FromMinutes(5),
-                        QueueLimit = 0
-                    }));
-
-            // حدس کد: حداکثر ۸ تلاش در هر ۵ دقیقه.
-            options.AddPolicy("otp-verify", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 8,
-                        Window = TimeSpan.FromMinutes(5),
-                        QueueLimit = 0
-                    }));
 
             // ورود با رمز: حداکثر ۱۰ تلاش در هر ۱۵ دقیقه برای جلوگیری از حدس زدن رمز.
             options.AddPolicy("login", httpContext =>

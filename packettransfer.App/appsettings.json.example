@@ -22,12 +22,8 @@
       }
     }
   },
-  "Identity": {
-    "//": "شماره‌ی ادمین اول روی دیتابیس خالی. خالی یعنی هیچ‌کس خودکار ادمین نمی‌شود و کاربران تازه نقش «کاربر» می‌گیرند.",
-    "FirstAdminPhoneNumber": ""
-  },
   "Sms": {
-    "//": "Provider: Fake (لاگ) یا Kavenegar (واقعی).",
+    "//": "Provider: Fake (لاگ) یا Kavenegar (واقعی) — برای اعلان‌های پیامکی صف Outbox.",
     "Provider": "Fake",
     "Kavenegar": {
       "ApiKey": "",
@@ -54,14 +50,6 @@
       "Sandbox": false
     }
   },
-  "Captcha": {
-    "//": "Provider: خالی/Fake (غیرفعال) یا Turnstile (واقعی).",
-    "Provider": "",
-    "Turnstile": {
-      "SiteKey": "",
-      "SecretKey": ""
-    }
-  },
   "Push": {
     "//": "کلیدهای VAPID برای وب‌پوش. ساخت: npx web-push generate-vapid-keys",
     "//Subject": "mailto:admin@example.com",
@@ -72,7 +60,7 @@
     }
   },
   "ApiTokens": {
-    "//": "عمر توکن موبایل به روز.",
+    "//": "عمر توکن API به روز.",
     "LifetimeDays": 180
   },
   "Support": {

@@ -1,0 +1,338 @@
+@* packettransfer.App/Components/Pages/Admin/Distribution.razor *@
+@page "/admin/distribution"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = packettransfer.Distribution.DistributionPermissions.Manage)]
+@using Microsoft.AspNetCore.Authorization
+@using packettransfer.Application.DTOs
+@using packettransfer.Distribution.DTOs
+@using packettransfer.Distribution.Entities
+@using packettransfer.Distribution.Services
+@using packettransfer.Application.Helpers
+<PageTitle>داشبورد توزیع</PageTitle>
+
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-1">داشبورد توزیع بسته</h3>
+        <div class="text-body-secondary small">ایمپورت اکسل اطلاعات توزیع + گزارش وضعیت ارسال</div>
+    </div>
+    <label class="btn btn-sm btn-primary mb-0" title="ستون‌ها: شهر، محله، ناحیه، منطقه، کد تحویل، کد ملی، تاریخ تحویل، کاربر تحویل‌دهنده">
+        <i class="bi bi-file-earmark-excel me-1"></i>ایمپورت اکسل توزیع
+        <InputFile accept=".xlsx" OnChange="ImportAsync" style="display:none;" />
+    </label>
+</div>
+
+@if (!string.IsNullOrEmpty(importSummary))
+{
+    <div class="alert alert-success small py-2 mb-3">@importSummary</div>
+}
+@if (importErrors.Count > 0)
+{
+    <div class="alert alert-warning small py-2 mb-3">
+        <ul class="mb-0 ps-3">
+            @foreach (var error in importErrors.Take(10))
+            {
+                <li>سطر @error.RowNumber (@error.Column): @error.Message</li>
+            }
+            @if (importErrors.Count > 10)
+            {
+                <li>و @(importErrors.Count - 10) خطای دیگر…</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (summary is not null)
+{
+    <div class="row g-2 mb-3">
+        <div class="col-4">
+            <div class="card-panel text-center py-2">
+                <div class="fs-4 fw-bold">@summary.Value.Total.ToString("N0")</div>
+                <div class="small text-body-secondary">کل بسته‌ها</div>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="card-panel text-center py-2">
+                <div class="fs-4 fw-bold text-warning">@summary.Value.Pending.ToString("N0")</div>
+                <div class="small text-body-secondary">تحویل‌نشده</div>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="card-panel text-center py-2">
+                <div class="fs-4 fw-bold text-success">@summary.Value.Delivered.ToString("N0")</div>
+                <div class="small text-body-secondary">تحویل‌شده</div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="card-panel mb-3">
+    <div class="d-flex flex-wrap gap-2">
+        <input class="form-control form-control-sm" style="max-width: 220px;" placeholder="جست‌وجو: کد تحویل، کد ملی، شهر…"
+               @bind="search" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+        <select class="form-select form-select-sm" style="max-width: 150px;" value="@cityFilter" @onchange="OnCityChanged">
+            <option value="">همهٔ شهرها</option>
+            @foreach (var c in cities)
+            {
+                <option value="@c">@c</option>
+            }
+        </select>
+        <select class="form-select form-select-sm" style="max-width: 150px;" value="@statusFilter" @onchange="OnStatusChanged">
+            <option value="">همهٔ وضعیت‌ها</option>
+            <option value="@DeliveryStatus.Pending">تحویل‌نشده</option>
+            <option value="@DeliveryStatus.Delivered">تحویل‌شده</option>
+        </select>
+        <input class="form-control form-control-sm" style="max-width: 160px;" placeholder="نام کاربری توزیع‌کننده"
+               @bind="assigneeFilter" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+        <button class="btn btn-sm btn-outline-secondary" @onclick="SearchAsync">جست‌وجو</button>
+    </div>
+</div>
+
+@if (reassignPackage is not null)
+{
+    <div class="card-panel mb-3 border-warning">
+        <div class="d-flex flex-wrap gap-2 align-items-end">
+            <div>
+                <div class="small text-body-secondary">انتساب مجدد بسته <b>@reassignPackage.DeliveryCode</b> به:</div>
+                <input class="form-control form-control-sm mt-1" style="max-width: 220px;" placeholder="نام کاربری توزیع‌کننده جدید"
+                       @bind="reassignUserName" />
+            </div>
+            <button class="btn btn-sm btn-warning" disabled="@isSaving" @onclick="DoReassign">ثبت انتساب</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="CancelReassign">انصراف</button>
+        </div>
+        @if (!string.IsNullOrEmpty(reassignError))
+        {
+            <div class="alert alert-danger small py-2 mt-2 mb-0">@reassignError</div>
+        }
+    </div>
+}
+
+<div class="card-panel">
+    @if (page is null)
+    {
+        <LoadingSkeleton />
+    }
+    else if (!page.Items.Any())
+    {
+        <div class="text-center text-body-secondary py-4">
+            <i class="bi bi-box-seam fs-3 d-block mb-2"></i>
+            <span class="small">بسته‌ای با این فیلتر نیست. از دکمه «ایمپورت اکسل توزیع» شروع کنید.</span>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>کد تحویل</th>
+                    <th>شهر / محله</th>
+                    <th>کد ملی</th>
+                    <th>موعد</th>
+                    <th>توزیع‌کننده</th>
+                    <th>وضعیت</th>
+                    <th>تحویل</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in page.Items)
+                {
+                    <tr>
+                        <td><code>@p.DeliveryCode</code></td>
+                        <td>@p.City@if (!string.IsNullOrWhiteSpace(p.Neighborhood))
+                            {<span class="text-body-secondary"> / @p.Neighborhood</span>}</td>
+                        <td>@p.NationalCode</td>
+                        <td>@(p.ScheduledDate?.ToPersianDate() ?? "—")</td>
+                        <td>@(p.AssigneeUserName ?? "—")</td>
+                        <td>
+                            @if (p.Status == DeliveryStatus.Delivered)
+                            {
+                                <span class="badge text-bg-success">تحویل‌شده</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-warning">تحویل‌نشده</span>
+                            }
+                        </td>
+                        <td class="small">
+                            @if (p.Status == DeliveryStatus.Delivered)
+                            {
+                                @(p.DeliveredAtUtc?.ToPersianDateTime() ?? "—")
+                                @if (!string.IsNullOrWhiteSpace(p.DeliveredByUserName))
+                                {
+                                    <span class="text-body-secondary d-block">توسط @p.DeliveredByUserName</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-body-secondary">—</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="@(() => StartReassign(p))">انتساب مجدد</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+        <Pager CurrentPage="page.Page" TotalPages="page.TotalPages" TotalCount="page.TotalCount"
+               OnPageChanged="GoToPage" />
+    }
+</div>
+
+@code {
+    [Inject] private IDistributionService DistributionService { get; set; } = default!;
+    [Inject] private packettransfer.App.Services.ToastService ToastService { get; set; } = default!;
+
+    private PagedResult<PackageDeliveryDto>? page;
+    private (int Total, int Pending, int Delivered)? summary;
+    private List<string> cities = new();
+    private string? search;
+    private string? cityFilter;
+    private string? statusFilter;
+    private string? assigneeFilter;
+    private int currentPage = 1;
+    private const int PageSize = 20;
+
+    private string? importSummary;
+    private List<ImportRowErrorDto> importErrors = new();
+
+    private PackageDeliveryDto? reassignPackage;
+    private string? reassignUserName;
+    private string? reassignError;
+    private bool isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshSummaryAsync();
+        await LoadAsync();
+    }
+
+    private async Task RefreshSummaryAsync()
+    {
+        summary = await DistributionService.GetSummaryAsync();
+        cities = await DistributionService.GetCitiesAsync();
+    }
+
+    private DistributionReportFilter BuildFilter()
+    {
+        Enum.TryParse<DeliveryStatus>(statusFilter, out var status);
+        return new()
+        {
+            Search = search,
+            City = string.IsNullOrWhiteSpace(cityFilter) ? null : cityFilter,
+            Status = string.IsNullOrEmpty(statusFilter) ? null : status,
+            AssigneeUserName = assigneeFilter,
+            Page = currentPage,
+            PageSize = PageSize
+        };
+    }
+
+    private async Task LoadAsync()
+    {
+        page = await DistributionService.GetReportPagedAsync(BuildFilter());
+    }
+
+    private async Task SearchAsync()
+    {
+        currentPage = 1;
+        await LoadAsync();
+    }
+
+    private async Task GoToPage(int newPage)
+    {
+        currentPage = newPage;
+        await LoadAsync();
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await SearchAsync();
+    }
+
+    private async Task OnCityChanged(ChangeEventArgs e)
+    {
+        cityFilter = e.Value?.ToString();
+        await SearchAsync();
+    }
+
+    private async Task OnStatusChanged(ChangeEventArgs e)
+    {
+        statusFilter = e.Value?.ToString();
+        await SearchAsync();
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs e)
+    {
+        importSummary = null;
+        importErrors = new();
+
+        try
+        {
+            await using var source = e.File.OpenReadStream(5 * 1024 * 1024);
+            using var buffer = new MemoryStream();
+            await source.CopyToAsync(buffer);
+            buffer.Position = 0;
+
+            var result = await DistributionService.ImportAsync(buffer);
+            importSummary = $"{result.ImportedCount} بسته از {result.TotalRows} سطر وارد شد.";
+            importErrors = result.RowErrors;
+            if (result.ImportedCount > 0)
+            {
+                currentPage = 1;
+                await RefreshSummaryAsync();
+                await LoadAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(packettransfer.App.Components.Shared.ErrorMessageHelper.ToUserMessage(ex));
+        }
+    }
+
+    private void StartReassign(PackageDeliveryDto p)
+    {
+        reassignPackage = p;
+        reassignUserName = p.AssigneeUserName;
+        reassignError = null;
+    }
+
+    private void CancelReassign()
+    {
+        reassignPackage = null;
+        reassignUserName = null;
+        reassignError = null;
+    }
+
+    private async Task DoReassign()
+    {
+        if (reassignPackage is null || string.IsNullOrWhiteSpace(reassignUserName)) return;
+
+        isSaving = true;
+        reassignError = null;
+        try
+        {
+            var result = await DistributionService.ReassignAsync(reassignPackage.Id, reassignUserName.Trim());
+            if (result.Succeeded)
+            {
+                ToastService.ShowSuccess("توزیع‌کننده تغییر کرد.");
+                CancelReassign();
+                await LoadAsync();
+            }
+            else
+            {
+                reassignError = string.Join("، ", result.Errors.Select(x => x.Description));
+            }
+        }
+        catch (Exception ex)
+        {
+            reassignError = packettransfer.App.Components.Shared.ErrorMessageHelper.ToUserMessage(ex);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}
