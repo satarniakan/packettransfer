@@ -22,13 +22,21 @@ public class packettransferDbContextDesignTimeFactory : IDesignTimeDbContextFact
             .Build();
 
         var connectionString = configuration.GetConnectionString("Default")
-            ?? "Server=(localdb)\\mssqllocaldb;Database=packettransferDev;Trusted_Connection=True;TrustServerCertificate=True";
+            ?? "Data Source=App_Data/app.db";
 
-        var options = new DbContextOptionsBuilder<packettransferDbContext>()
-            .ReplaceService<IModelCacheKeyFactory, packettransferModelCacheKeyFactory>()
-            .UseSqlServer(connectionString, sql => sql.MigrationsAssembly(
-                typeof(packettransferDbContextDesignTimeFactory).Assembly.GetName().Name))
-            .Options;
+        var useSqlite = DatabaseProvider.IsSqlite(connectionString, configuration);
+
+        var builder = new DbContextOptionsBuilder<packettransferDbContext>()
+            .ReplaceService<IModelCacheKeyFactory, packettransferModelCacheKeyFactory>();
+
+        if (useSqlite)
+            builder.UseSqlite(connectionString, sql => sql.MigrationsAssembly(
+                typeof(packettransferDbContextDesignTimeFactory).Assembly.GetName().Name));
+        else
+            builder.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(
+                typeof(packettransferDbContextDesignTimeFactory).Assembly.GetName().Name));
+
+        var options = builder.Options;
 
         // ماژول‌های دامنه را از مونتاژهای لودشده پیدا می‌کنیم. وقتی dotnet ef با
         // --startup-project پروژهٔ میزبان صدا زده شود، مونتاژ ماژول‌ها هم در دسترس است و

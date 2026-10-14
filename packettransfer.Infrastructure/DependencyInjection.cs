@@ -25,12 +25,32 @@ public static class DependencyInjection
         this IServiceCollection services, IConfiguration configuration, bool isDevelopment = false,
         string? migrationsAssembly = null)
     {
+        var connectionString = configuration.GetConnectionString("Default")
+            ?? throw new InvalidOperationException(
+                "رشته اتصال «ConnectionStrings:Default» خالی است. "
+                + "فایل packettransfer.App/appsettings.json را از appsettings.json.example کپی کنید. "
+                + "پیش‌فرض SQLite فایلی است: Data Source=App_Data/app.db");
+        var useSqlite = DatabaseProvider.IsSqlite(connectionString, configuration);
+
         services.AddDbContext<packettransferDbContext>(opt =>
         {
             // مدلِ این context به ماژول‌های دامنه بستگی دارد؛ بدون این، EF مدلِ هر
             // ماژول‌دار را برای contextهای بدون ماژول هم برمی‌گرداند.
             opt.ReplaceService<IModelCacheKeyFactory, packettransferModelCacheKeyFactory>();
-            opt.UseSqlServer(configuration.GetConnectionString("Default"),
+            if (useSqlite)
+            {
+                opt.UseSqlite(connectionString, sql =>
+                {
+                    // مایگریشن‌ها در مونتاژ میزبان‌اند نه پایه، تا اسکیمای دامنهٔ هر
+                    // پروژه وارد فریم‌ورک مشترک نشود. میزبان اسم مونتاژ خودش را می‌دهد:
+                    // AddpackettransferInfrastructure(config, env.IsDevelopment(),
+                    //     migrationsAssembly: typeof(Program).Assembly.GetName().Name)
+                    if (!string.IsNullOrWhiteSpace(migrationsAssembly))
+                        sql.MigrationsAssembly(migrationsAssembly);
+                });
+                return;
+            }
+            opt.UseSqlServer(connectionString,
                 sql =>
                 {
                     sql.EnableRetryOnFailure(

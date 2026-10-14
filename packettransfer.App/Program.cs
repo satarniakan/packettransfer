@@ -70,11 +70,22 @@ app.UsepackettransferSecurityHeaders();
 // پیام فارسیِ امن + کد وضعیت درست؛ جزئیات فنی فقط در لاگ (و در Development در پاسخ).
 app.UsepackettransferExceptionHandler();
 
-// اعمال خودکار مایگریشن‌های EF هنگام استارتاپ — دیگر فراموش نمی‌شوند
+// اعمال خودکار مایگریشن‌های EF هنگام استارتاپ — دیگر فراموش نمی‌شوند.
+// SQLite فایلی (App_Data/app.db): بدون نیاز به SQL Server، با EnsureCreated ساخته می‌شود
+// چون مایگریشن‌های موجود مخصوص SQL Server هستند. SQL Server: طبق معمول MigrateAsync.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<packettransferDbContext>();
-    await db.Database.MigrateAsync();
+    if (db.Database.IsSqlite())
+    {
+        packettransfer.Infrastructure.Data.DatabaseProvider.EnsureSqliteDirectory(
+            app.Configuration.GetConnectionString("Default"), app.Environment.ContentRootPath);
+        await db.Database.EnsureCreatedAsync();
+    }
+    else
+    {
+        await db.Database.MigrateAsync();
+    }
 }
 
 // مجوزها و نقش‌های پایه

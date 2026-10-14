@@ -4,7 +4,8 @@
 
 ## نمای کلی
 
-- استک: ‎.NET 10 (global.json)‎، Blazor Server تعاملی، EF Core + SQL Server، Serilog.
+- استک: ‎.NET 10 (global.json)‎، Blazor Server تعاملی، EF Core + SQL Server (`localhost,1433`، دیتابیس `packettransferDev`)، Serilog.
+- انتخاب پروایدر دیتابیس در `packettransfer.Infrastructure/Data/DatabaseProvider.cs` است (`Database:Provider=SqlServer/Sqlite`)؛ مایگریشن‌های `Migrations/` مخصوص SQL Serverاند و SQLite با `EnsureCreated` ساخته می‌شود.
 - همهٔ متن‌ها فارسی راست‌چین؛ زمان‌ها در دیتابیس UTC، نمایش شمسی با `PersianDateHelper`.
 - ساخته‌شده از قالب `empty-platform`؛ فضای‌نام ریشه `packettransfer`.
 

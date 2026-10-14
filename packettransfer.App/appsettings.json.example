@@ -5,7 +5,11 @@
   "//settings": "مقادیر عملیاتی (کلیدها، هاست‌ها) را می‌توانید بعداً از صفحه /admin/settings هم عوض کنید — ردیف دیتابیس بر این فایل مقدم است. مقادیر محرمانه در دیتابیس رمزنگاری می‌شوند.",
 
   "ConnectionStrings": {
-    "Default": "Server=(localdb)\\mssqllocaldb;Database=EmptyFrameworkDev;Trusted_Connection=True;TrustServerCertificate=True"
+    "Default": "Server=localhost,1433;Database=packettransferDev;Trusted_Connection=True;TrustServerCertificate=True"
+  },
+  "Database": {
+    "//": "Provider: SqlServer (پیش‌فرض) یا Sqlite (فایل محلی: Data Source=App_Data/app.db).",
+    "Provider": "SqlServer"
   },
   "Serilog": {
     "//log-note": "سطح System را از Warning پایین نیاورید: کلید API کاوه‌نگار داخل URL درخواست است و لاگ HttpClient آن را با آدرس کامل ثبت می‌کند.",
