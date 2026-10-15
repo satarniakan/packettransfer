@@ -63,8 +63,8 @@ public sealed class AppNavProvider : INavProvider
 {
     public IReadOnlyList<NavItem> GetRootItems() =>
     [
-        // توزیع بسته: داشبورد ادمین + اپ توزیع‌کننده
-        NavItem.Group("توزیع بسته", "bi-box-seam",
+        // توزیع بسته‌های پروتئینی: داشبورد ادمین + اپ توزیع‌کننده
+        NavItem.Group("توزیع بسته‌های پروتئینی", "bi-box-seam",
             NavItem.Link("داشبورد توزیع", "admin/distribution", "bi-clipboard-data",
                 packettransfer.Distribution.DistributionPermissions.Manage),
             NavItem.Link("اپ توزیع‌کننده", "deliver", "bi-bicycle",

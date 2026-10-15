@@ -31,6 +31,8 @@ package-lock.json
 
 ## Scratch data files kept locally, never in git
 /mrniakan.xlsx
+packettransfer.App/App_Data/
+/screenshots/
 
 ## Local tooling mirror of .gitignore
 .zcodeignore
